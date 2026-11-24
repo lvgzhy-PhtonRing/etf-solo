@@ -1,5 +1,13 @@
-import { describe, it, expect } from 'vitest'
+import { afterAll, beforeAll, describe, it, expect } from 'vitest'
+import { weekLabel } from '../src/utils/assetLedger'
 import { pokerFlows, pokerPeriodKey, buildPokerBars, POKER_CATEGORIES } from '../src/utils/assetPoker'
+
+const originalTimezone = process.env.TZ
+beforeAll(() => { process.env.TZ = 'Asia/Shanghai' })
+afterAll(() => {
+  if (originalTimezone === undefined) delete process.env.TZ
+  else process.env.TZ = originalTimezone
+})
 
 const flows = [
   { date: '2026-11-23', category: '德州入账', amount: 242.5, dz_mode: '线上' },
@@ -19,9 +27,38 @@ describe('assetPoker（德州战绩）', () => {
     expect(pokerFlows(flows, '线下')).toHaveLength(1)
   })
 
-  it('周期键：日 / 周（周一起）/ 月', () => {
+  it('未设置场次的旧流水默认计入线上', () => {
+    const legacyFlows = [
+      { category: '德州入账', amount: 10 },
+      { category: '德州出账', amount: -5, dz_mode: null },
+      { category: '德州入账', amount: 8, dzMode: '' },
+      { category: '德州入账', amount: 12, dz_mode: '线下' }
+    ]
+    expect(pokerFlows(legacyFlows, '线上')).toHaveLength(3)
+    expect(pokerFlows(legacyFlows, '线下')).toHaveLength(1)
+  })
+
+  it('周日周期键和周标签沿用旧程序日期解析', async () => {
+    expect(pokerPeriodKey('2026-11-22', 'week')).toBe('2026-11-15')
+    const { pokerWeekLabel } = await import('../src/utils/assetPoker')
+    expect(pokerWeekLabel?.('2026-11-15')).toBe('11/15-11/21')
+    expect(weekLabel('2026-11-15')).toBe('11/15-11/21')
+  })
+
+  it('日K标签沿用旧程序的本地日期解析', async () => {
+    const original = process.env.TZ
+    process.env.TZ = 'America/Los_Angeles'
+    try {
+      const { pokerDayLabel } = await import('../src/utils/assetPoker')
+      expect(pokerDayLabel?.('2026-11-22')).toBe('11/21')
+    } finally {
+      process.env.TZ = original
+    }
+  })
+
+  it('周期键：日 / 周 / 月', () => {
     expect(pokerPeriodKey('2026-11-24', 'day')).toBe('2026-11-24')
-    expect(pokerPeriodKey('2026-11-24', 'week')).toBe('2026-11-23')
+    expect(pokerPeriodKey('2026-11-24', 'week')).toBe('2026-11-22')
     expect(pokerPeriodKey('2026-11-24', 'month')).toBe('2026-11')
   })
 

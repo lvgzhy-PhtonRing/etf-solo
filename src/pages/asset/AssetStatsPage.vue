@@ -1,5 +1,5 @@
 <template>
-  <div class="page stats-page">
+  <div class="page stats-page asset-page">
     <div class="page-header">
       <span class="page-title">收支统计<span class="page-sub">按分类统计支出与收入</span></span>    </div>
 

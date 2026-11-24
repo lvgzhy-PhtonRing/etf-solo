@@ -20,15 +20,55 @@ describe('assetPoker 图表几何', () => {
     const r = pokerChart(bars)
     expect(r.maxAbs).toBe(1019)
     expect(r.halfRange).toBe(1273.75)
+    expect(r.chartHeight).toBe(180)
   })
 
-  it('每根蜡烛有方向与高度百分比（相对半幅）', () => {
+  it('蜡烛按旧版固定像素坐标与影线几何计算', () => {
     const r = pokerChart(bars)
     expect(r.items.map(i => i.isUp)).toEqual([true, true, false])
-    // 1019 / 1273.75 ≈ 80%
-    expect(r.items[0].heightPct).toBeCloseTo(80, 1)
-    // -5 / 1273.75 ≈ 0.39% → 最小可视高度
-    expect(r.items[2].heightPct).toBeGreaterThan(0)
+    expect(r.items[0]).toMatchObject({
+      candleHeight: 72,
+      candleTop: 18,
+      candleBottom: 90,
+      wickHeight: 4,
+      wickTop: 14,
+      wickBottom: 18,
+      capTop: 90
+    })
+    expect(r.items[2]).toMatchObject({
+      candleHeight: 2,
+      candleTop: 90,
+      candleBottom: 92,
+      wickHeight: 0.6,
+      wickTop: 92,
+      wickBottom: 92.6,
+      capTop: 90
+    })
+  })
+
+  it('零盈亏归为正方向并保留2px最小蜡烛', () => {
+    const r = pokerChart([{ key: '2026-11-22', pnl: 0 }])
+    expect(r.items[0]).toMatchObject({
+      isUp: true,
+      candleHeight: 2,
+      candleTop: 88,
+      candleBottom: 90,
+      wickTop: 87.4,
+      wickBottom: 88,
+      capTop: 90
+    })
+  })
+
+  it('大额亏损影线延伸到柱体下方并限制在坐标区内', () => {
+    const r = pokerChart([{ key: '2026-11-22', pnl: -1000 }])
+    expect(r.items[0]).toMatchObject({
+      isUp: false,
+      candleTop: 90,
+      candleBottom: 162,
+      wickTop: 162,
+      wickBottom: 166,
+      capTop: 90
+    })
   })
 
   it('空数据安全', () => {

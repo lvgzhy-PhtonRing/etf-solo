@@ -25,6 +25,8 @@ body {
 /* 涨跌色 */
 .text-rise { color: var(--color-rise); }
 .text-fall { color: var(--color-fall); }
+.asset-page .rise { color: var(--color-rise); }
+.asset-page .fall { color: var(--color-fall); }
 
 /* 卡片 */
 .card {

@@ -1,5 +1,5 @@
 <template>
-  <div class="page poker-page">
+  <div class="page poker-page asset-page">
     <div class="page-header">
       <span class="page-title">德州战绩<span class="page-sub">德州扑克出入账统计</span></span>
     </div>
@@ -118,16 +118,16 @@
     <!-- 全屏 -->
     <div v-if="fsOpen" class="fs-overlay">
       <div class="fs-header">
-        <span class="fs-title">德州战绩 · {{ modeLabel }}</span>
-        <button class="fs-close" @click="exitFs">✕</button>
-      </div>
-      <div class="fs-body">
-        <div class="chart-info chart-info--fs">
+        <span class="fs-title">🃏 德州K线趋势</span>
+        <div class="fs-summary">
           <span>周期: <b>{{ chart.stats.periods }}</b></span>
           <span>盈利: <b class="rise">{{ chart.stats.wins }}次</b></span>
           <span>亏损: <b class="fall">{{ chart.stats.losses }}次</b></span>
           <span>场均: <b>{{ chart.stats.avgNet >= 0 ? '+' : '' }}{{ formatMoney(chart.stats.avgNet) }}</b></span>
         </div>
+        <button class="fs-close" @click="exitFs">✕</button>
+      </div>
+      <div class="fs-body">
         <PokerChart :bars="bars" :mode="mode" fullscreen />
       </div>
     </div>
@@ -140,8 +140,7 @@ import LoadErrorTip from '@/components/common/LoadErrorTip.vue'
 import LoadingSkeleton from '@/components/common/LoadingSkeleton.vue'
 import PokerChart from '@/components/asset/PokerChart.vue'
 import { useAssetStore } from '@/stores/assets'
-import { buildPokerBars, pokerChart, pokerFlows, pokerPeriodKey } from '@/utils/assetPoker'
-import { weekKey, weekLabel } from '@/utils/assetLedger'
+import { buildPokerBars, pokerChart, pokerFlows, pokerPeriodKey, pokerDayLabel, pokerWeekLabel } from '@/utils/assetPoker'
 import { formatMoney } from '@/utils/formatters'
 
 const store = useAssetStore()
@@ -184,8 +183,6 @@ function exitFs() {
     if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock()
   } catch (e) { /* 忽略 */ }
 }
-
-const modeLabel = computed(() => MODES.find(m => m.key === mode.value)?.label || '')
 
 const bars = computed(() => buildPokerBars(store.flows, mode.value, filter.value))
 const chart = computed(() => pokerChart(bars.value))
@@ -230,8 +227,8 @@ const detailsDesc = computed(() => {
 
       const wk = new Map()
       for (const f of items) {
-        const k = weekKey(f.date)
-        if (!wk.has(k)) wk.set(k, { key: k, label: weekLabel(k), items: [] })
+        const k = pokerPeriodKey(f.date, 'week')
+        if (!wk.has(k)) wk.set(k, { key: k, label: pokerWeekLabel(k), items: [] })
         wk.get(k).items.push(f)
       }
       base.weeks = [...wk.values()]
@@ -247,11 +244,8 @@ const detailsDesc = computed(() => {
 
 function modeLabelOf(key) {
   if (mode.value === 'month') return key.replace('-', '年') + '月'
-  if (mode.value === 'week') {
-    const y = key.slice(0, 4)
-    return `${y} ${weekLabel(key)}`
-  }
-  return key
+  if (mode.value === 'week') return `${key.slice(0, 4)} ${pokerWeekLabel(key)}`
+  return pokerDayLabel(key)
 }
 
 onMounted(() => {
@@ -305,8 +299,6 @@ onMounted(() => {
   margin-bottom: 4px;
 }
 .chart-info b { color: var(--text-primary); font-weight: 600; }
-.chart-info--fs { font-size: 12px; }
-
 .detail-list { display: flex; flex-direction: column; gap: 8px; }
 .detail-card { padding: 12px 14px; }
 .dc-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
@@ -331,11 +323,17 @@ onMounted(() => {
   background: var(--bg-primary);
 }
 .fs-header {
-  display: flex; justify-content: space-between; align-items: center;
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
   padding: 12px 16px; border-bottom: 1px solid var(--border-soft);
   flex-shrink: 0;
 }
 .fs-title { font-size: 15px; font-weight: 700; }
+.fs-summary {
+  display: flex; align-items: center; justify-content: center;
+  gap: 12px; flex: 1; flex-wrap: wrap;
+  font-size: 11px; color: var(--text-muted);
+}
+.fs-summary b { color: var(--text-primary); font-weight: 600; }
 .fs-close {
   width: 32px; height: 32px; border: none; border-radius: 50%;
   background: var(--bg-hover); color: var(--text-secondary);

@@ -1,10 +1,11 @@
 <template>
-  <div class="kline-chart-wrap" ref="wrap">
+  <div class="kline-chart-wrap" :class="{ 'kline-chart-wrap--fs': fullscreen }" ref="wrap">
     <div class="kline-chart" :class="{ 'kline-chart--fs': fullscreen }">
       <div v-for="it in chart.items" :key="it.key" class="kline-bar-group">
         <div class="kline-candle-area">
           <div class="kline-candle" :class="it.isUp ? 'up' : 'down'" :style="candleStyle(it)"></div>
           <div class="kline-wick" :class="it.isUp ? 'up' : 'down'" :style="wickStyle(it)"></div>
+          <div class="kline-wick" :class="it.isUp ? 'up' : 'down'" :style="capStyle(it)"></div>
         </div>
         <div class="kline-vol" :class="it.isUp ? 'up' : 'down'">
           {{ it.net >= 0 ? '+' : '' }}{{ fmt(it.net) }}
@@ -22,9 +23,8 @@
 
 <script setup>
 import { ref, computed, watch, onMounted, nextTick } from 'vue'
-import { pokerChart } from '@/utils/assetPoker'
+import { pokerChart, pokerDayLabel, pokerWeekLabel } from '@/utils/assetPoker'
 import { formatMoney } from '@/utils/formatters'
-import { weekLabel } from '@/utils/assetLedger'
 
 const props = defineProps({
   bars: { type: Array, default: () => [] },
@@ -35,17 +35,22 @@ const props = defineProps({
 const wrap = ref(null)
 const chart = computed(() => pokerChart(props.bars))
 
-// heightPct 是「相对半幅」的百分比，CSS 高度需减半
 function candleStyle(it) {
-  const h = (it.heightPct / 2).toFixed(3) + '%'
-  return it.isUp ? { bottom: '50%', height: h } : { top: '50%', height: h }
+  return {
+    top: `${it.candleTop}px`,
+    height: `${it.candleBottom - it.candleTop}px`
+  }
 }
 
 function wickStyle(it) {
-  // 影线：朝蜡烛外侧延伸 3px
-  return it.isUp
-    ? { bottom: 'calc(50% + ' + (it.heightPct / 2) + '%)', height: '3px' }
-    : { top: 'calc(50% + ' + (it.heightPct / 2) + '%)', height: '3px' }
+  return {
+    top: `${it.wickTop}px`,
+    height: `${it.wickBottom - it.wickTop}px`
+  }
+}
+
+function capStyle(it) {
+  return { top: `${it.capTop}px`, height: '2px' }
 }
 
 function fmt(n) {
@@ -54,8 +59,8 @@ function fmt(n) {
 
 function labelOf(key) {
   if (props.mode === 'month') return key.slice(2).replace('-', '/')
-  if (props.mode === 'week') return weekLabel(key)
-  return `${Number(key.slice(5, 7))}/${Number(key.slice(8, 10))}`
+  if (props.mode === 'week') return pokerWeekLabel(key)
+  return pokerDayLabel(key)
 }
 
 function scrollToEnd() {
@@ -76,6 +81,7 @@ watch(() => props.bars, scrollToEnd)
   padding: 8px 0 4px;
   position: relative;
 }
+.kline-chart-wrap--fs { flex: 1; min-height: 150px; overflow-y: visible; }
 .kline-chart {
   display: flex;
   align-items: stretch;
@@ -142,11 +148,43 @@ watch(() => props.bars, scrollToEnd)
 .kfs-in { color: var(--color-rise); }
 .kfs-out { color: var(--color-fall); }
 
-/* 全屏模式放大 */
-.kline-chart--fs { height: 58vh; }
-.kline-chart--fs .kline-bar-group { width: 84px; }
-.kline-chart--fs .kline-candle { width: 22px; }
-.kline-chart--fs .kline-wick { width: 3px; }
-.kline-chart--fs .kline-vol { font-size: 11px; max-width: 84px; }
-.kline-chart--fs .kline-label { font-size: 11px; max-width: 84px; }
+/* 全屏模式尺寸沿用旧版：竖屏紧凑，横屏放大 */
+.kline-chart--fs { height: 172px; }
+.kline-chart--fs .kline-bar-group { width: 24px; }
+.kline-chart--fs .kline-candle { width: 6px; }
+.kline-chart--fs .kline-wick { width: 1px; }
+.kline-chart--fs .kline-label {
+  font-size: 5px; max-width: 32px;
+  white-space: nowrap; overflow: visible; text-overflow: clip;
+}
+.kline-chart--fs .kline-vol {
+  font-size: 5px; max-width: 32px; font-weight: 600;
+  white-space: nowrap; overflow: visible; text-overflow: clip;
+}
+.kline-chart--fs .kline-fs-detail {
+  gap: 1px; margin-top: 2px; width: 100%;
+}
+.kline-chart--fs .kfs-in,
+.kline-chart--fs .kfs-out {
+  font-size: 4px; line-height: 1.2; max-width: 32px;
+  white-space: nowrap; overflow: visible; text-overflow: clip;
+}
+
+@media (orientation: landscape) {
+  .kline-chart--fs { height: calc(100dvh - 120px); min-height: 200px; }
+  .kline-chart--fs .kline-bar-group { width: 100px; }
+  .kline-chart--fs .kline-candle { width: 28px; }
+  .kline-chart--fs .kline-wick { width: 4px; }
+  .kline-chart--fs .kline-label {
+    font-size: 14px; max-width: 96px;
+    font-weight: 600; color: #374151;
+  }
+  .kline-chart--fs .kline-vol {
+    font-size: 13px; max-width: 96px; font-weight: 700;
+  }
+  .kline-chart--fs .kfs-in,
+  .kline-chart--fs .kfs-out {
+    font-size: 12px; max-width: 96px; font-weight: 500;
+  }
+}
 </style>
