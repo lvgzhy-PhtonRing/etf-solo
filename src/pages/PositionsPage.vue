@@ -194,7 +194,7 @@ onMounted(async () => {
   justify-content: space-between;
   padding: 4px 2px 12px;
 }
-.page-title { font-size: 20px; font-weight: 700; }
+.page-title { font-size: 17px; font-weight: 700; }
 .title-en { font-size: 11px; color: var(--text-muted); margin-left: 8px; font-weight: 400; }
 .section-card { padding: 14px 16px; margin-bottom: 10px; }
 .section-title { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; padding-bottom: 10px; }
@@ -208,10 +208,33 @@ onMounted(async () => {
 .trd-value { font-size: 14px; font-weight: 600; color: var(--text-primary); }
 .trd-sep { color: var(--text-muted); }
 .total-slogan {
-  display: flex; align-items: center; justify-content: center; gap: 6px;
-  margin: 10px 0 6px; font-size: 13px; font-weight: 600; color: var(--text-secondary);
+  text-align: center;
+  padding: 6px 0 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
 }
-.slogan-emoji { font-size: 18px; }
+.slogan-emoji {
+  font-size: 28px;
+  line-height: 1;
+  animation: slogan-bounce 2s ease-in-out infinite;
+}
+.slogan-text {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 4px;
+  background: linear-gradient(135deg, var(--color-warn), #ff6b35);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-shadow: none;
+  position: relative;
+}
+@keyframes slogan-bounce {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+}
 .cash-row {
   display: flex; align-items: baseline; justify-content: center; gap: 8px;
   padding: 8px 10px; margin: 6px 0 10px;

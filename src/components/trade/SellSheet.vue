@@ -4,7 +4,7 @@
     position="bottom"
     round
     :close-on-click-overlay="false"
-    :style="{ height: '70%' }"
+    :style="{ height: '74%' }"
   >
     <div class="trade-sheet">
       <div class="sheet-head">
@@ -48,7 +48,7 @@
           </div>
           <div style="margin: 16px 0">
             <van-button round block type="primary"
-              :color="sellValid ? 'var(--color-fall)' : 'var(--text-muted)'"
+              :color="sellValid ? 'var(--color-rise)' : '#666'"
               :disabled="!sellValid || submitting"
               :loading="submitting"
               @click="submitSell">
@@ -250,7 +250,7 @@ watch(() => props.modelValue, async v => {
 .sell-price-row { display: flex; align-items: center; gap: 8px; padding: 0 0 12px; }
 .spr-label { font-size: 13px; color: var(--text-secondary); white-space: nowrap; }
 .spr-price-input { flex: 1; background: var(--bg-hover); border: 1px solid var(--border-soft); border-radius: 4px; color: var(--text-primary); font-size: 16px; padding: 6px 10px; text-align: right; outline: none; }
-.spr-price-input:focus { border-color: var(--color-fall); }
+.spr-price-input:focus { border-color: var(--color-rise); }
 .spr-unit { font-size: 13px; color: var(--text-secondary); }
 .sell-total-row { padding: 8px 0 16px; border-bottom: 1px solid var(--border-soft); margin-bottom: 12px; }
 .stl-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }

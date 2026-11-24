@@ -17,7 +17,7 @@
           <span class="detail-value num-mono">{{ formatPrice(stock.currentPrice) }}</span>
         </div>
         <div class="detail-item">
-          <span class="detail-label">成本</span>
+          <span class="detail-label">摊薄成本</span>
           <span class="detail-value num-mono">{{ formatPrice(stock.cost_price) }}</span>
         </div>
         <div class="detail-item">

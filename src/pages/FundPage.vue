@@ -127,7 +127,6 @@ onMounted(async () => {
 
 <style scoped>
 .page-header { display: flex; align-items: baseline; justify-content: space-between; padding: 4px 2px 12px; }
-.page-title { font-size: 20px; font-weight: 700; }
 .title-en { font-size: 11px; color: var(--text-muted); margin-left: 8px; font-weight: 400; }
 .section-card { padding: 14px 16px; margin-bottom: 10px; }
 .section-title { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; padding-bottom: 10px; }

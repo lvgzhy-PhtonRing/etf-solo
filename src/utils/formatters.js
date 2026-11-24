@@ -62,3 +62,17 @@ export function formatChange(value) {
   if (isNaN(num)) return '—'
   return num >= 0 ? `+${num.toFixed(2)}` : num.toFixed(2)
 }
+
+/**
+ * 保留原时刻（北京时分秒），仅替换日期；无有效原时间用 12:00。
+ */
+export function isoWithDate(iso, dateStr) {
+  let time = '12:00:00'
+  const d = iso ? new Date(iso) : null
+  if (d && !isNaN(d.getTime())) {
+    time = new Intl.DateTimeFormat('sv-SE', {
+      timeZone: 'Asia/Shanghai', hour: '2-digit', minute: '2-digit', second: '2-digit'
+    }).format(d)
+  }
+  return `${dateStr}T${time}+08:00`
+}

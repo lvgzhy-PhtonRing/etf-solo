@@ -28,3 +28,19 @@ export function parseAdjustNote(note) {
 export function serializeAdjustNote(payload) {
   return PREFIX + JSON.stringify(payload)
 }
+
+/**
+ * 编辑调整类流水金额时，同步单分项金额：
+ * 单分项 → 按原符号更新 signedAmount（分为单位），返回新备注；
+ * 多分项 → 返回 null（不允许改金额，需走分项维护）；
+ * 普通备注 → 原样返回。
+ */
+export function updateAdjustAmount(note, amount) {
+  const data = parseAdjustNote(note)
+  if (!data?.items?.length) return note || ''
+  if (data.items.length !== 1) return null
+  const item = data.items[0]
+  const sign = (item.signedAmount || 0) < 0 ? -1 : 1
+  item.signedAmount = Math.round(amount * 100) * sign
+  return serializeAdjustNote(data)
+}

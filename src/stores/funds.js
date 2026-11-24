@@ -1,6 +1,6 @@
 // src/stores/funds.js — 单账户资金口径
 import { defineStore } from 'pinia'
-import { fetchCapitalLogs, insertCapitalLog, updateCapitalLog } from '@/api/supabase'
+import { fetchCapitalLogs, insertCapitalLog, updateCapitalLog, deleteCapitalLog } from '@/api/supabase'
 
 export const useFundStore = defineStore('funds', {
   state: () => ({
@@ -72,6 +72,16 @@ export const useFundStore = defineStore('funds', {
         throw e
       } finally {
         this.submitting = false
+      }
+    },
+    async removeCapitalLog(id) {
+      this.error = null
+      try {
+        await deleteCapitalLog(id)
+        this.capitalLogs = this.capitalLogs.filter(l => l.id !== id)
+      } catch (e) {
+        this.error = e.message
+        throw e
       }
     }
   }

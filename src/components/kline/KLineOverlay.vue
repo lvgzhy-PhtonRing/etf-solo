@@ -11,7 +11,7 @@
       <div class="kline-title">
         <span class="kline-name">{{ stock.stock_name }}</span>
         <span class="kline-code">{{ stock.stock_code }}</span>
-        <span class="kline-cost" v-if="costLabel">持仓成本{{ costLabel }}元</span>
+        <span class="kline-cost" v-if="costLabel">摊薄成本{{ costLabel }}元</span>
         <span class="kline-price" v-if="priceLabel" :style="{ background: priceBg }">现价{{ priceLabel }}元</span>
       </div>
       <div class="kline-tabs">
@@ -555,7 +555,7 @@ onBeforeUnmount(() => {
   padding: 5px 14px;
   background: transparent;
   border: none;
-  color: var(--text-secondary);
+  color: #a7a3c8;
   font-size: 13px;
   border-radius: 6px;
   cursor: pointer;
@@ -563,7 +563,7 @@ onBeforeUnmount(() => {
 }
 
 .kline-tab.active {
-  background: var(--bg-accent);
+  background: #6f4dff;
   color: #fff;
 }
 
@@ -573,7 +573,7 @@ onBeforeUnmount(() => {
   align-items: center;
   padding: 6px 12px;
   font-size: 11px;
-  color: var(--text-secondary);
+  color: #a7a3c8;
   flex-shrink: 0;
 }
 
@@ -613,10 +613,10 @@ onBeforeUnmount(() => {
 }
 
 .kline-mask-inner {
-  color: var(--text-secondary);
+  color: #a7a3c8;
   font-size: 14px;
   padding: 12px 22px;
-  background: var(--bg-solid);
+  background: #1e1b3a;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 10px;
 }

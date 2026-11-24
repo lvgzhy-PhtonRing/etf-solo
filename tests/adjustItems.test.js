@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseAdjustNote, ADJUST_LABELS, serializeAdjustNote } from '../src/utils/adjustItems'
+import { parseAdjustNote, ADJUST_LABELS, serializeAdjustNote, updateAdjustAmount } from '../src/utils/adjustItems'
 
 const payload = { version: 1, items: [{ category: 'stock_dividend', stockName: '格林美', signedAmount: 12345 }] }
 
@@ -25,5 +25,25 @@ describe('adjustItems（调整分项 JSON 契约）', () => {
 
   it('分项标签齐全', () => {
     expect(Object.keys(ADJUST_LABELS)).toEqual(['stock_dividend', 'interest', 'reverse_repo', 'dividend_tax', 'fee_error'])
+  })
+
+  it('updateAdjustAmount：单分项按正负号同步金额', () => {
+    const note = serializeAdjustNote({ version: 1, note: '券商流水导入', items: [{ category: 'stock_dividend', stockName: '特变电工', stockCode: '600089', signedAmount: 46800 }] })
+    const next = updateAdjustAmount(note, 500)
+    expect(parseAdjustNote(next).items[0].signedAmount).toBe(50000)
+  })
+
+  it('updateAdjustAmount：负分项（红利税）保持负号', () => {
+    const note = serializeAdjustNote({ version: 1, items: [{ category: 'dividend_tax', signedAmount: -2520 }] })
+    expect(parseAdjustNote(updateAdjustAmount(note, 10)).items[0].signedAmount).toBe(-1000)
+  })
+
+  it('updateAdjustAmount：多分项返回 null（不允许改）', () => {
+    const note = serializeAdjustNote({ version: 1, items: [{ category: 'interest', signedAmount: 100 }, { category: 'fee_error', signedAmount: -50 }] })
+    expect(updateAdjustAmount(note, 1)).toBe(null)
+  })
+
+  it('updateAdjustAmount：普通备注原样返回', () => {
+    expect(updateAdjustAmount('利息', 5)).toBe('利息')
   })
 })

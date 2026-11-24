@@ -171,6 +171,7 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
+import { showToast } from 'vant'
 import { formatMoney, formatPrice } from '@/utils/formatters'
 import { calcBuyFee, calcSellFee } from '@/utils/feeCalculator'
 import { calcHoldingAfterDelete, calcHoldingAfterEdit, calcTradeEdit } from '@/utils/calculators'
@@ -359,7 +360,7 @@ async function recalcHolding(stockCode, stockName) {
 async function saveEditTrade() {
   if (!editingTrade.value) return
   if (isOpeningTrade(editingTrade.value)) {
-    alert('期初建仓是净值基准，不能编辑')
+    showToast('期初建仓是净值基准，不能编辑')
     return
   }
   const price = parseFloat(editPrice.value)
@@ -413,7 +414,7 @@ async function doDeleteTrade() {
   if (!deletingTrade.value) return
   const log = deletingTrade.value
   if (isOpeningTrade(log)) {
-    alert('期初建仓是净值基准，不能删除')
+    showToast('期初建仓是净值基准，不能删除')
     deletingTrade.value = null
     return
   }
