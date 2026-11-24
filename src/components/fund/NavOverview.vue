@@ -27,16 +27,6 @@
         <div class="ov-info-value ov-info-value--date">{{ inceptionText }}</div>
       </div>
       <div class="ov-info-item">
-        <div class="ov-info-label">最HARD基金经理</div>
-        <div class="ov-info-tags">
-          <span v-if="topHard" class="pool-tag"
-            :style="{ background: topHard.color + '22', color: topHard.color }">
-            {{ topHard.name }}
-          </span>
-          <span v-else class="ov-info-value">—</span>
-        </div>
-      </div>
-      <div class="ov-info-item">
         <div class="ov-info-label">规模（元）</div>
         <div class="ov-info-value num-mono">{{ scaleText }}</div>
       </div>
@@ -61,7 +51,6 @@ import { fetchPositionSnapshots } from '@/api/supabase'
 import { useHoldingStore } from '@/stores/holdings'
 import { usePriceStore } from '@/stores/prices'
 import { useFundStore } from '@/stores/funds'
-import { useHardRanking } from '@/composables/useHardRanking'
 import { MINE, MINE_BASE_DATE, MINE_BASE_ASSET } from '@/utils/portfolioNav'
 
 const PERIODS = [
@@ -75,7 +64,6 @@ const snapshots = ref([])
 const holdingStore = useHoldingStore()
 const priceStore = usePriceStore()
 const fundStore = useFundStore()
-const { topHard, loadRankingData } = useHardRanking()
 
 // 快照按日期升序（fetchPositionSnapshots 已排序）
 const latest = computed(() =>
@@ -161,7 +149,6 @@ function pct(v) {
 
 onMounted(async () => {
   try {
-    await loadRankingData()
     snapshots.value = await fetchPositionSnapshots(500)
   } catch (e) {
     console.warn('NavOverview load error:', e)
