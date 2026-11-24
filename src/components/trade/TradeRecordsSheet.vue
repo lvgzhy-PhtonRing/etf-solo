@@ -62,17 +62,16 @@
               <div class="trade-log-item">
                 <div class="tli-body">
                   <div class="tli-header">
-                    <span class="tli-action" :class="log.type === 'add' ? 'rise' : 'fall'">
-                      {{ log.type === 'add' ? '卖出' : '买入' }} {{ log.stock_code }}
+                    <span class="tli-action" :class="log.type === 'sell' ? 'rise' : 'fall'">
+                      {{ log.type === 'sell' ? '卖出' : '买入' }} {{ log.stock_code }}
                     </span>
                     <span class="tli-name">{{ log.stock_name }}</span>
-                    <span v-if="log.quantity" class="tli-qty">{{ log.quantity }}股</span>
+                    <span class="tli-qty">{{ log.quantity }}股</span>
                   </div>
                   <div class="tli-meta">
                     <span>@{{ formatPrice(log.price) }}</span>
                     <span> · {{ formatMoney(log.amount) }}</span>
                     <span v-if="log.fee > 0" class="tli-fee">· 费 {{ formatMoney(log.fee) }}</span>
-                    <span> · {{ log.pool_name }}</span>
                     <span> · {{ formatDateString(log.trade_date) }}</span>
                   </div>
                 </div>
@@ -100,24 +99,16 @@
           <div class="dlg-row-flex">
             <div class="dlg-field dlg-half">
               <label class="dlg-label">类型</label>
-              <span class="dlg-value">{{ editingTrade.type === 'add' ? '卖出' : '买入' }}</span>
+              <span class="dlg-value">{{ editingTrade.type === 'sell' ? '卖出' : '买入' }}</span>
             </div>
             <div class="dlg-field dlg-half">
               <label class="dlg-label">股票代码</label>
               <span class="dlg-value">{{ editStockCode }}</span>
             </div>
           </div>
-          <div class="dlg-row-flex">
-            <div class="dlg-field dlg-half">
-              <label class="dlg-label">子池</label>
-              <select v-model="editPoolId" class="dlg-input">
-                <option v-for="p in poolStore.allPools" :key="p.id" :value="p.id">{{ p.name }}</option>
-              </select>
-            </div>
-            <div class="dlg-field dlg-half">
-              <label class="dlg-label">成交单价</label>
-              <input v-model="editPrice" type="number" inputmode="decimal" class="dlg-input num-mono" step="0.001" @input="onEditPriceOrQtyChange" />
-            </div>
+          <div class="dlg-field">
+            <label class="dlg-label">成交单价</label>
+            <input v-model="editPrice" type="number" inputmode="decimal" class="dlg-input num-mono" step="0.001" @input="onEditPriceOrQtyChange" />
           </div>
           <div class="dlg-field">
             <label class="dlg-label">成交数量（股）</label>
@@ -129,7 +120,7 @@
               <span class="dlg-value num-mono">含费 {{ formatMoney(editComputedActual) }}</span>
             </div>
             <div class="dlg-field dlg-half">
-              <label class="dlg-label">手续费（{{ editingTrade?.type === 'add' ? '0.5954' : '0.0854' }}‰）</label>
+              <label class="dlg-label">手续费（{{ editingTrade?.type === 'sell' ? '0.5954' : '0.0854' }}‰）</label>
               <span class="dlg-value num-mono">{{ formatMoney(editFee) }}</span>
             </div>
           </div>
@@ -154,23 +145,19 @@
           <div class="dlg-info">此操作不可撤销！</div>
           <div class="dlg-rows">
             <div class="dlg-row">
-              <span>{{ deletingTrade.type === 'add' ? '卖出' : '买入' }}</span>
+              <span>{{ deletingTrade.type === 'sell' ? '卖出' : '买入' }}</span>
               <span class="num-mono">{{ formatMoney(deletingTrade.amount) }}</span>
             </div>
-            <div v-if="deletingTrade.stock_code" class="dlg-row">
+            <div class="dlg-row">
               <span>股票</span>
               <span>{{ deletingTrade.stock_code }} {{ deletingTrade.stock_name }}</span>
-            </div>
-            <div v-if="deletingTrade.pool_name" class="dlg-row">
-              <span>子池</span>
-              <span>{{ deletingTrade.pool_name }}</span>
             </div>
             <div v-if="deletingTrade.note" class="dlg-row">
               <span>备注</span>
               <span>{{ deletingTrade.note }}</span>
             </div>
           </div>
-          <div class="dlg-warn">⚠️ 删除后将同步删除关联交易、更新持仓和可用资金，不可恢复！</div>
+          <div class="dlg-warn">⚠️ 删除后将同步删除关联流水、更新持仓和可用资金，不可恢复！</div>
           <div class="dlg-btns">
             <button class="d-cancel" @click="deletingTrade = null">取消</button>
             <button class="d-ok del" @click="doDeleteTrade">🗑️ 确认删除</button>
@@ -187,10 +174,9 @@ import { formatMoney, formatPrice } from '@/utils/formatters'
 import { calcBuyFee, calcSellFee } from '@/utils/feeCalculator'
 import {
   updateCapitalLog, deleteCapitalLog, updateTransaction, deleteTransaction,
-  fetchTransactionsByPoolStock, deleteHolding, upsertHolding, logDelete
+  fetchTransactionsByStock, deleteHolding, upsertHolding
 } from '@/api/supabase'
 import { matchTradedStocks } from '@/api/stock'
-import { usePoolStore } from '@/stores/pools'
 import { useTransactionStore } from '@/stores/transactions'
 import { useHoldingStore } from '@/stores/holdings'
 import { useFundStore } from '@/stores/funds'
@@ -205,19 +191,15 @@ const visible = computed({
   set: v => emit('update:modelValue', v)
 })
 
-const poolStore = usePoolStore()
 const txStore = useTransactionStore()
 const holdingStore = useHoldingStore()
 const fundStore = useFundStore()
 
 const showAllLogs = ref(false)
 const tradeLogs = computed(() => {
-  return fundStore.capitalLogs.filter(l => l.pool_id !== null).map(l => {
-    const note = l.note || ''; const parts = note.split(' ')
-    const code = parts.length > 1 && /^\d{6}$/.test(parts[parts.length - 1]) ? parts[parts.length - 1] : ''
-    const tx = txStore.transactions.find(t => t.pool_id === l.pool_id && code && (t.stock_code === code) && (Math.abs(t.amount - l.amount) < 0.01 || Math.abs((t.actual_amount || t.amount) - l.amount) < 0.01))
-    return { ...l, stock_code: code, stock_name: tx?.stock_name || '', quantity: tx?.quantity || 0, price: tx?.price || 0, fee: tx?.fee || 0, trade_date: tx?.trade_date || l.created_at, pool_name: poolStore.pools.find(p => p.id === l.pool_id)?.name || '' }
-  }).sort((a, b) => new Date(b.trade_date) - new Date(a.trade_date))
+  return txStore.transactions
+    .slice()
+    .sort((a, b) => new Date(b.trade_date) - new Date(a.trade_date))
 })
 
 const filterQuery = ref('')
@@ -298,137 +280,112 @@ const displayedLogs = computed(() => {
 
 function formatDateString(isoStr) { if (!isoStr) return ''; const d = new Date(isoStr); return `${d.getMonth()+1}/${d.getDate()}` }
 
-const editingTrade = ref(null); const editPrice = ref(''); const editNote = ref(''); const editQuantity = ref(''); const editStockCode = ref(''); const editDate = ref(''); const editPoolId = ref(null); const deletingTrade = ref(null)
+const editingTrade = ref(null); const editPrice = ref(''); const editNote = ref(''); const editQuantity = ref(''); const editStockCode = ref(''); const editDate = ref(''); const deletingTrade = ref(null)
 const editFee = ref(0)
 const editComputedAmount = ref(0)
 const editComputedActual = ref(0)
 
-function editFeeFn(isSell) { return isSell ? calcSellFee : calcBuyFee }
+function actualAmountOf(tx) {
+  const amt = tx.amount || 0
+  const fee = tx.fee || 0
+  return tx.type === 'sell' ? amt - fee : amt + fee
+}
+
+function matchedCapLog(tx) {
+  const target = actualAmountOf(tx)
+  return fundStore.capitalLogs.find(l =>
+    l.category === 'trade' &&
+    l.note === (tx.note || '') &&
+    Math.abs(l.amount - target) < 0.01
+  )
+}
 
 function onEditPriceOrQtyChange() {
   const price = parseFloat(editPrice.value) || 0
   const qty = parseInt(editQuantity.value) || 0
   const amount = price * qty
   editComputedAmount.value = amount
-  const isSell = editingTrade.value?.type === 'add'
-  editFee.value = amount > 0 ? editFeeFn(isSell)(amount) : 0
+  const isSell = editingTrade.value?.type === 'sell'
+  editFee.value = amount > 0 ? (isSell ? calcSellFee(amount) : calcBuyFee(amount)) : 0
   editComputedActual.value = amount > 0 ? (isSell ? amount - editFee.value : amount + editFee.value) : 0
 }
 
-async function startEditTrade(log) {
-  editingTrade.value = log; editNote.value = log.note || ''; editQuantity.value = ''; editStockCode.value = log.stock_code || ''; editDate.value = ''
-  editPoolId.value = log.pool_id
-  editPrice.value = ''; editFee.value = 0; editComputedAmount.value = 0; editComputedActual.value = 0
-  if (log.stock_code) {
-    try {
-      const txs = await fetchTransactionsByPoolStock(log.pool_id, log.stock_code)
-      const match = txs.find(t => (Math.abs(t.amount - log.amount) < 0.01 || Math.abs((t.actual_amount || t.amount) - log.amount) < 0.01))
-      if (match) {
-        editQuantity.value = String(match.quantity)
-        editDate.value = match.trade_date || ''
-        editPrice.value = String(match.price || (match.quantity > 0 ? (match.amount / match.quantity).toFixed(3) : ''))
-      }
-    } catch (e) {}
-  }
+function startEditTrade(log) {
+  editingTrade.value = log
+  editNote.value = log.note || ''
+  editQuantity.value = String(log.quantity || '')
+  editStockCode.value = log.stock_code || ''
+  editDate.value = log.trade_date || ''
+  editPrice.value = String(log.price || '')
   onEditPriceOrQtyChange()
 }
 
-async function recalcHoldingsForPool(poolId, stockCode, stockName) {
-  const allTxs = await fetchTransactionsByPoolStock(poolId, stockCode)
-  if (allTxs.length === 0) {
-    await deleteHolding(poolId, stockCode)
+async function recalcHolding(stockCode, stockName) {
+  const allTxs = await fetchTransactionsByStock(stockCode)
+  const netQty = allTxs.reduce((s, t) => s + (t.type === 'buy' ? t.quantity : -t.quantity), 0)
+  if (netQty <= 0) {
+    await deleteHolding(stockCode)
     return
   }
-  let totalBuyQty = 0, totalBuyAmt = 0, netQty = 0
-  for (const tx of allTxs) {
-    if (tx.type === 'buy') { totalBuyQty += tx.quantity; totalBuyAmt += tx.amount }
-    netQty += tx.type === 'buy' ? tx.quantity : -tx.quantity
-  }
-  if (netQty <= 0) {
-    await deleteHolding(poolId, stockCode)
-  } else {
-    const costPrice = totalBuyQty > 0 ? totalBuyAmt / totalBuyQty : 0
-    await upsertHolding({ pool_id: poolId, stock_code: stockCode, stock_name: stockName || '', quantity: netQty, cost_price: costPrice })
-  }
+  const buyTotal = allTxs.filter(t => t.type === 'buy').reduce((s, t) => s + t.amount + (t.fee || 0), 0)
+  const sellTotal = allTxs.filter(t => t.type === 'sell').reduce((s, t) => s + t.amount - (t.fee || 0), 0)
+  const costPrice = Math.max((buyTotal - sellTotal) / netQty, 0)
+  await upsertHolding({ stock_code: stockCode, stock_name: stockName || '', quantity: netQty, cost_price: parseFloat(costPrice.toFixed(6)) })
 }
 
 async function saveEditTrade() {
   if (!editingTrade.value) return
-  const price = parseFloat(editPrice.value); const newQty = parseInt(editQuantity.value) || 0
+  const price = parseFloat(editPrice.value)
+  const newQty = parseInt(editQuantity.value) || 0
   if (!price || price <= 0 || !newQty) return
   const amount = parseFloat((price * newQty).toFixed(2))
-  const log = editingTrade.value; const stockCode = editStockCode.value; const newPoolId = editPoolId.value; const oldPoolId = log.pool_id
-  const poolChanged = newPoolId && newPoolId !== oldPoolId
-
+  const log = editingTrade.value
+  const isSell = log.type === 'sell'
+  const fee = isSell ? calcSellFee(amount) : calcBuyFee(amount)
+  const actualAmount = isSell ? parseFloat((amount - fee).toFixed(2)) : parseFloat((amount + fee).toFixed(2))
   try {
-    if (stockCode) {
-      const allTxs = await fetchTransactionsByPoolStock(oldPoolId, stockCode)
-      const matchedTx = allTxs.find(t => (Math.abs(t.amount - log.amount) < 0.01 || Math.abs((t.actual_amount || t.amount) - log.amount) < 0.01))
-      if (matchedTx) {
-        const isSell = log.type === 'add'
-        const fee = editFeeFn(isSell)(amount)
-        const actualAmount = isSell ? parseFloat((amount - fee).toFixed(2)) : parseFloat((amount + fee).toFixed(2))
-        const txUpdates = { quantity: newQty, amount, price, fee, actual_amount: actualAmount }
-        if (editDate.value) txUpdates.trade_date = editDate.value
-        if (poolChanged) txUpdates.pool_id = newPoolId
+    const txUpdates = { quantity: newQty, amount, price, fee }
+    if (editDate.value) txUpdates.trade_date = editDate.value
+    await updateTransaction(log.id, txUpdates)
+    txStore.transactions = txStore.transactions.map(t => t.id === log.id ? { ...t, ...txUpdates } : t)
 
-        await updateTransaction(matchedTx.id, txUpdates)
-        txStore.transactions = txStore.transactions.map(t => t.id === matchedTx.id ? { ...t, ...txUpdates } : t)
-
-        if (poolChanged) {
-          await recalcHoldingsForPool(oldPoolId, stockCode, matchedTx.stock_name)
-          await recalcHoldingsForPool(newPoolId, stockCode, matchedTx.stock_name)
-        } else {
-          await recalcHoldingsForPool(oldPoolId, stockCode, matchedTx.stock_name)
-        }
-        await holdingStore.loadHoldings()
-
-        const capUpdates = { amount: actualAmount, note: editNote.value || '' }
-        if (poolChanged) capUpdates.pool_id = newPoolId
-        await updateCapitalLog(log.id, capUpdates)
-
-        if (poolChanged) {
-          fundStore.capitalLogs = fundStore.capitalLogs.map(c => c.id === log.id ? { ...c, pool_id: newPoolId, amount: actualAmount, note: editNote.value || '' } : c)
-        }
-      }
+    const cap = matchedCapLog(log)
+    if (cap) {
+      await updateCapitalLog(cap.id, { amount: actualAmount, note: editNote.value || log.note || '' })
     }
-
-    await Promise.all([fundStore.loadCapitalLogs(), txStore.loadTransactions()])
+    await recalcHolding(log.stock_code, log.stock_name)
+    await Promise.all([fundStore.loadCapitalLogs(), holdingStore.loadHoldings(), txStore.loadTransactions()])
     editingTrade.value = null
     emit('changed')
-  } catch (e) { console.error('Save edit trade error:', e) }
+  } catch (e) {
+    console.error('Save edit trade error:', e)
+  }
 }
 
 function confirmDeleteTrade(log) { deletingTrade.value = log }
 
 async function doDeleteTrade() {
-  if (!deletingTrade.value) return; const log = deletingTrade.value
+  if (!deletingTrade.value) return
+  const log = deletingTrade.value
   try {
-    const { id, pool_id, amount, note, type } = log; const code = log.stock_code
-    if (code) {
-      const allTxs = await fetchTransactionsByPoolStock(pool_id, code); const matchedTx = allTxs.find(t => Math.abs(t.amount - amount) < 0.01 || Math.abs((t.actual_amount || t.amount) - amount) < 0.01)
-      if (matchedTx) { await deleteTransaction(matchedTx.id); txStore.transactions = txStore.transactions.filter(t => t.id !== matchedTx.id) }
-      await recalcHoldingsForPool(pool_id, code, matchedTx?.stock_name || '')
-      await holdingStore.loadHoldings()
-    }
-    await deleteCapitalLog(id)
-    await logDelete('capital_log', id, `${type} ${amount} ${note || ''}`)
-    await Promise.all([fundStore.loadCapitalLogs(), txStore.loadTransactions()])
+    await deleteTransaction(log.id)
+    txStore.transactions = txStore.transactions.filter(t => t.id !== log.id)
+    const cap = matchedCapLog(log)
+    if (cap) await deleteCapitalLog(cap.id)
+    await recalcHolding(log.stock_code, log.stock_name)
+    await Promise.all([fundStore.loadCapitalLogs(), holdingStore.loadHoldings(), txStore.loadTransactions()])
     deletingTrade.value = null
     emit('changed')
-  } catch (e) { console.error('Delete trade error:', e) }
+  } catch (e) {
+    console.error('Delete trade error:', e)
+  }
 }
 
 watch(() => props.modelValue, async v => {
   if (!v) return
-  filterStockCode.value = ''
-  filterStockName.value = ''
-  filterQuery.value = ''
-  filterSuggestions.value = []
-  showFilterDropdown.value = false
-  showAllLogs.value = false
+  clearFilter()
   try {
-    await Promise.all([poolStore.loadPools(), fundStore.loadCapitalLogs(), txStore.loadTransactions()])
+    await Promise.all([fundStore.loadCapitalLogs(), txStore.loadTransactions()])
   } catch (e) {}
 })
 </script>
@@ -440,7 +397,7 @@ watch(() => props.modelValue, async v => {
   align-items: center;
   gap: 8px;
   padding: 14px 16px 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid var(--border-soft);
   flex-shrink: 0;
 }
 .sheet-title { flex: 1; font-size: 16px; font-weight: 700; }
@@ -450,7 +407,7 @@ watch(() => props.modelValue, async v => {
   flex-shrink: 0;
   border: none;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--bg-hover);
   color: var(--text-secondary);
   font-size: 14px;
   line-height: 1;
@@ -459,7 +416,7 @@ watch(() => props.modelValue, async v => {
   align-items: center;
   justify-content: center;
 }
-.sheet-close:active { background: rgba(255, 255, 255, 0.15); }
+.sheet-close:active { background: var(--bg-subtle); }
 .sheet-body { flex: 1; overflow-y: auto; padding: 16px; }
 
 .section-title { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; padding: 0 0 10px; }
@@ -472,17 +429,17 @@ watch(() => props.modelValue, async v => {
   border-radius: 12px;
   font-weight: 600;
 }
-.rec-all-tag { font-size: 11px; padding: 2px 10px; border-radius: 10px; color: var(--text-secondary); background: rgba(255,255,255,0.06); cursor: pointer; flex: 0 0 auto; }
-.rec-all-tag.active { color: var(--color-rise); background: rgba(255,77,109,0.14); font-weight: 600; }
+.rec-all-tag { font-size: 11px; padding: 2px 10px; border-radius: 10px; color: var(--text-secondary); background: var(--bg-hover); cursor: pointer; flex: 0 0 auto; }
+.rec-all-tag.active { color: var(--color-rise); background: rgba(214,69,69,0.12); font-weight: 600; }
 .filter-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
 .filter-input-wrap { position: relative; flex: 1; min-width: 0; }
-.filter-input { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: var(--radius-md); padding: 0 34px 0 4px; }
+.filter-input { background: var(--bg-hover); border: 1px solid var(--border-soft); border-radius: var(--radius-md); padding: 0 34px 0 4px; }
 .filter-input :deep(.van-field__control) { font-size: 13px; }
 .filter-clear { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 14px; color: var(--text-muted); padding: 4px; cursor: pointer; z-index: 2; }
 .filter-clear:active { opacity: 0.6; }
-.filter-dropdown { position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 20; background: var(--bg-solid); border: 1px solid rgba(255,255,255,0.12); border-radius: var(--radius-md); overflow: hidden; box-shadow: 0 6px 20px rgba(0,0,0,0.4); max-height: 240px; overflow-y: auto; }
+.filter-dropdown { position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 20; background: var(--bg-card); border: 1px solid var(--border-soft); border-radius: var(--radius-md); overflow: hidden; box-shadow: 0 6px 20px rgba(120,100,75,0.18); max-height: 240px; overflow-y: auto; }
 .filter-sugg-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; cursor: pointer; }
-.filter-sugg-item:active { background: rgba(255,255,255,0.06); }
+.filter-sugg-item:active { background: var(--bg-hover); }
 .fs-name { font-size: 13px; font-weight: 600; flex: 0 0 auto; max-width: 55%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fs-code { font-size: 12px; color: var(--text-secondary); flex: 0 0 auto; }
 .fs-count { font-size: 11px; color: var(--text-muted); margin-left: auto; }
@@ -508,23 +465,23 @@ watch(() => props.modelValue, async v => {
 .swipe-edit-btn { width: 70px; border: none; background: var(--bg-accent); color: #fff; font-size: 13px; font-weight: 500; cursor: pointer; }
 .swipe-del-btn { width: 70px; border: none; background: var(--color-fall); color: #fff; font-size: 13px; font-weight: 500; cursor: pointer; }
 
-.overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 9999; padding: 20px; }
-.dialog { background: var(--bg-solid); border-radius: var(--radius-lg); padding: 20px; width: 100%; max-width: 360px; }
+.overlay { position: fixed; inset: 0; background: rgba(46,42,36,0.45); display: flex; align-items: center; justify-content: center; z-index: 9999; padding: 20px; }
+.dialog { background: var(--bg-card); border-radius: var(--radius-lg); padding: 20px; width: 100%; max-width: 360px; }
 .dlg-title { font-size: 17px; font-weight: 700; margin-bottom: 16px; }
 .dlg-field { margin-bottom: 12px; }
 .dlg-row-flex { display: flex; gap: 12px; margin-bottom: 12px; }
 .dlg-half { flex: 1; min-width: 0; }
 .dlg-label { display: block; font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; }
 .dlg-value { font-size: 14px; color: var(--text-primary); }
-.dlg-input { width: 100%; padding: 10px 12px; border: 1px solid rgba(255,255,255,0.1); border-radius: var(--radius-md); background: rgba(255,255,255,0.04); color: #fff; font-size: 15px; outline: none; box-sizing: border-box; }
+.dlg-input { width: 100%; padding: 10px 12px; border: 1px solid var(--border-soft); border-radius: var(--radius-md); background: var(--bg-hover); color: var(--text-primary); font-size: 15px; outline: none; box-sizing: border-box; }
 .dlg-input:focus { border-color: var(--bg-accent); }
 .dlg-input.num-mono { font-family: var(--font-number); }
 .dlg-btns { display: flex; gap: 10px; margin-top: 16px; }
 .dlg-info { font-size: 14px; color: var(--text-secondary); margin-bottom: 12px; line-height: 1.6; }
-.d-cancel { flex: 1; padding: 10px; border: 1px solid rgba(255,255,255,0.1); border-radius: var(--radius-md); background: transparent; color: var(--text-secondary); font-size: 14px; cursor: pointer; }
+.d-cancel { flex: 1; padding: 10px; border: 1px solid var(--border-soft); border-radius: var(--radius-md); background: transparent; color: var(--text-secondary); font-size: 14px; cursor: pointer; }
 .d-ok { flex: 2; padding: 10px; border: none; border-radius: var(--radius-md); background: var(--bg-accent); color: #fff; font-size: 14px; font-weight: 600; cursor: pointer; }
 .d-ok.del { background: var(--color-fall); }
 .dlg-rows { margin-bottom: 8px; }
-.dlg-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 13px; border-bottom: 1px solid rgba(255,255,255,0.03); }
+.dlg-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 13px; border-bottom: 1px solid var(--border-soft); }
 .dlg-warn { font-size: 11px; color: var(--color-warn); padding: 6px 0; text-align: center; }
 </style>

@@ -27,7 +27,6 @@
         <template v-else>
           <TradeForm
             :key="session"
-            :pools="poolStore.pools"
             :is-buy="true"
             :stock-price="currentPrice"
             :submitting="submitting"
@@ -41,12 +40,11 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { formatMoney, formatPrice } from '@/utils/formatters'
 import { calcBuyActual } from '@/utils/feeCalculator'
 import { calcNewCostPrice } from '@/utils/calculators'
-import { insertCapitalLog, upsertHolding, loadPoolAllocation } from '@/api/supabase'
-import { usePoolStore } from '@/stores/pools'
+import { insertCapitalLog, upsertHolding } from '@/api/supabase'
 import { useTransactionStore } from '@/stores/transactions'
 import { useHoldingStore } from '@/stores/holdings'
 import { useFundStore } from '@/stores/funds'
@@ -60,42 +58,12 @@ const emit = defineEmits(['update:modelValue', 'changed'])
 
 const visible = computed({
   get: () => props.modelValue,
-  set: v => emit('update:modelValue', v)
+  set: (v) => emit('update:modelValue', v)
 })
 
-const poolStore = usePoolStore()
 const txStore = useTransactionStore()
 const holdingStore = useHoldingStore()
 const fundStore = useFundStore()
-
-function loadLocalAlloc() {
-  const raw = localStorage.getItem('poolAmounts')
-  if (!raw) return null
-  const parsed = JSON.parse(raw)
-  if (parsed['共有'] !== undefined && parsed['公共池'] === undefined) { parsed['公共池'] = parsed['共有']; delete parsed['共有'] }
-  const vals = Object.values(parsed)
-  const sum = vals.reduce((s, v) => s + v, 0)
-  if (vals.every(v => v <= 100) && Math.abs(sum - 100) < 1) {
-    const amt = {}; for (const k of Object.keys(parsed)) amt[k] = (fundStore.totalCapital || 0) * parsed[k] / 100; return amt
-  }
-  return parsed
-}
-function defaultAlloc() { const each = Math.floor((fundStore.totalCapital || 1000000) / 5 / 10000) * 10000; return { '公共池': each, '春': each, '维': each, '队': each, '回': each } }
-const poolAmounts = reactive({})
-
-async function refreshAlloc() {
-  let base = loadLocalAlloc() || defaultAlloc()
-  for (const k of Object.keys(poolAmounts)) delete poolAmounts[k]
-  for (const k of Object.keys(base)) poolAmounts[k] = base[k]
-  try {
-    const server = await loadPoolAllocation()
-    if (server) {
-      let s = server
-      if (s['共有'] !== undefined && s['公共池'] === undefined) { s = { ...s }; s['公共池'] = s['共有']; delete s['共有'] }
-      for (const k of Object.keys(s)) { if (poolAmounts[k] !== undefined) poolAmounts[k] = s[k] }
-    }
-  } catch (e) {}
-}
 
 const step = ref('search')
 const session = ref(0)
@@ -108,39 +76,54 @@ const submitting = ref(false)
 async function onBuySubmit(data) {
   formError.value = ''
   if (!stockCode.value) { formError.value = '请先搜索并选择股票代码'; return }
-  const pool = poolStore.pools.find(p => p.id === data.pool_id)
-  if (pool) {
-    const poolCost = holdingStore.holdings.filter(h => h.pool_id === data.pool_id).reduce((s, h) => s + h.cost_price * h.quantity, 0)
-    let available
-    if (pool.name === '公共池') {
-      const totalCost = holdingStore.holdings.reduce((s, h) => s + h.cost_price * h.quantity, 0)
-      const sellIn = fundStore.capitalLogs.filter(l => l.pool_id !== null && l.type === 'add').reduce((s, l) => s + l.amount, 0)
-      const buyOut = fundStore.capitalLogs.filter(l => l.pool_id !== null && l.type === 'remove').reduce((s, l) => s + l.amount, 0)
-      const totalAvailable = fundStore.totalCapital + sellIn - buyOut
-      let subSum = 0
-      for (const p of poolStore.pools) { if (p.name === '公共池') continue; const sa = poolAmounts[p.name] || 0; const sc = holdingStore.holdings.filter(h => h.pool_id === p.id).reduce((s, h) => s + h.cost_price * h.quantity, 0); subSum += (sa - sc) }
-      available = totalAvailable - subSum
-    } else { available = (poolAmounts[pool.name] || 0) - poolCost }
-    const need = parseFloat(data.amount) || 0
-    if (need > available) { formError.value = `子池「${pool.name}」可用资金不足！剩余 ${formatMoney(available)}，本次需 ${formatMoney(need)}`; return }
+  const amount = parseFloat(data.amount)
+  const qty = data.quantity
+  const price = data.price
+  const { fee, actualAmount } = calcBuyActual(amount)
+  if (actualAmount > fundStore.totalAvailable) {
+    formError.value = `可用资金不足！剩余 ${formatMoney(fundStore.totalAvailable)}，本次需 ${formatMoney(actualAmount)}`
+    return
   }
   submitting.value = true
   try {
-    const amount = parseFloat(data.amount); const qty = data.quantity; const price = data.price
-    const { fee, actualAmount } = calcBuyActual(amount)
-    const tx = { pool_id: data.pool_id, stock_code: stockCode.value, stock_name: stockName.value, type: 'buy', quantity: qty, price, amount, fee, status: 'verified', actual_amount: actualAmount, trade_date: data.trade_date, note: data.note || `买入 ${stockCode.value}`, created_by: 'admin' }
+    const tx = {
+      stock_code: stockCode.value,
+      stock_name: stockName.value,
+      type: 'buy',
+      quantity: qty,
+      price,
+      amount,
+      fee,
+      trade_date: data.trade_date,
+      note: data.note || `买入 ${stockCode.value}`,
+      created_by: 'solo'
+    }
     await txStore.addTransaction(tx)
-    const existing = holdingStore.holdings.find(h => h.pool_id === data.pool_id && h.stock_code === stockCode.value)
+    const existing = holdingStore.holdings.find(h => h.stock_code === stockCode.value)
     const newCost = calcNewCostPrice(actualAmount, qty, existing?.quantity || 0, existing?.cost_price || 0)
-    await upsertHolding({ pool_id: data.pool_id, stock_code: stockCode.value, stock_name: stockName.value, quantity: (existing?.quantity || 0) + qty, cost_price: newCost })
-    await insertCapitalLog({ pool_id: data.pool_id, type: 'remove', amount: actualAmount, note: `买入 ${stockCode.value}`, created_by: 'admin' })
+    await upsertHolding({
+      stock_code: stockCode.value,
+      stock_name: stockName.value,
+      quantity: (existing?.quantity || 0) + qty,
+      cost_price: newCost
+    })
+    await insertCapitalLog({ type: 'remove', amount: actualAmount, note: `买入 ${stockCode.value}`, category: 'trade', created_by: 'solo' })
     await Promise.all([holdingStore.loadHoldings(), fundStore.loadCapitalLogs()])
     stockCode.value = ''; stockName.value = ''; currentPrice.value = 0; formError.value = ''; step.value = 'search'; visible.value = false
     emit('changed')
-  } catch (e) { console.error('Buy error:', e); formError.value = '提交失败：' + e.message } finally { submitting.value = false }
+  } catch (e) {
+    console.error('Buy error:', e)
+    formError.value = '提交失败：' + e.message
+  } finally {
+    submitting.value = false
+  }
 }
 
-function onStockSelected(stock) { currentPrice.value = stock.price; stockCode.value = stock.stock_code; stockName.value = stock.stock_name || '' }
+function onStockSelected(stock) {
+  currentPrice.value = stock.price
+  stockCode.value = stock.stock_code
+  stockName.value = stock.stock_name || ''
+}
 
 function onBuyClicked(stock) {
   onStockSelected(stock)
@@ -155,9 +138,8 @@ watch(() => props.modelValue, async v => {
   formError.value = ''; submitting.value = false
   session.value++
   try {
-    await Promise.all([poolStore.loadPools(), fundStore.loadCapitalLogs(), txStore.loadTransactions(), holdingStore.loadHoldings()])
+    await Promise.all([fundStore.loadCapitalLogs(), txStore.loadTransactions(), holdingStore.loadHoldings()])
   } catch (e) {}
-  await refreshAlloc()
 })
 </script>
 
@@ -168,7 +150,7 @@ watch(() => props.modelValue, async v => {
   align-items: center;
   gap: 8px;
   padding: 14px 16px 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid var(--border-soft);
   flex-shrink: 0;
 }
 .sheet-title { flex: 1; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
@@ -180,7 +162,7 @@ watch(() => props.modelValue, async v => {
   flex-shrink: 0;
   border: none;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--bg-hover);
   color: var(--text-secondary);
   font-size: 14px;
   cursor: pointer;
@@ -188,14 +170,14 @@ watch(() => props.modelValue, async v => {
   align-items: center;
   justify-content: center;
 }
-.sheet-back:active { background: rgba(255, 255, 255, 0.15); }
+.sheet-back:active { background: var(--bg-subtle); }
 .sheet-close {
   width: 28px;
   height: 28px;
   flex-shrink: 0;
   border: none;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--bg-hover);
   color: var(--text-secondary);
   font-size: 14px;
   line-height: 1;
@@ -204,7 +186,7 @@ watch(() => props.modelValue, async v => {
   align-items: center;
   justify-content: center;
 }
-.sheet-close:active { background: rgba(255, 255, 255, 0.15); }
+.sheet-close:active { background: var(--bg-subtle); }
 .sheet-body { flex: 1; overflow-y: auto; padding: 16px; }
 .form-err { color: var(--color-fall); font-size: 13px; text-align: center; margin-top: 12px; }
 </style>
