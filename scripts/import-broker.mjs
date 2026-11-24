@@ -107,9 +107,8 @@ function classify(row) {
   if (s.includes('转帐转入')) return { kind: 'transfer_in' }
   if (s.includes('转帐转出')) return { kind: 'transfer_out' }
   if (s.includes('红利差别税')) return { kind: 'dividend_tax', stockCode: /证券代码:(\d{6})/.exec(s)?.[1] || '' }
-  if (s.includes('红利到帐') || (s.includes('领') && s.includes('红利'))) {
-    return { kind: 'dividend', stockCode: /(\d{6})/.exec(s)?.[1] || '' }
-  }
+  if (s.includes('红利到帐')) return { kind: 'dividend', stockCode: /(\d{6})红利到帐/.exec(s)?.[1] || '' }
+  if (s.includes('领') && s.includes('红利')) return { kind: 'dividend', stockCode: /领(\d{6})红利/.exec(s)?.[1] || '' }
   if (s.includes('结息')) return { kind: 'interest' }
   throw new Error(`无法识别的流水：${s}`)
 }

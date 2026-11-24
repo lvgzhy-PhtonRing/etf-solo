@@ -2,7 +2,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { buildSnapshotInputs, marketDate } from '../src/utils/historicalSnapshotLedger.js'
+import { buildSnapshotInputs } from '../src/utils/historicalSnapshotLedger.js'
 import { parseAdjustNote } from '../src/utils/adjustItems.js'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -51,7 +51,10 @@ check('期末可用资金 36,408.03', Math.abs(available - 36408.03) < 0.001, av
 check('trade 流水 59 条', tradeLogs.length === 59, `${tradeLogs.length}`)
 check('trade 流水均已关联交易', linked.length === 59, `${linked.length}`)
 check('关联的 source_tx_id 均存在', linked.every(l => tradeTxIds.has(l.source_tx_id)), `${new Set(linked.map(l => l.source_tx_id)).size} unique`)
-check('无 0 值 pos_snap 快照', (configs || []).length === 0, `${(configs || []).length} 条`)
+const snapValues = (configs || []).map(c => {
+  try { return JSON.parse(c.value) } catch { return null }
+})
+check('pos_snap 快照均有效', snapValues.length > 0 && snapValues.every(v => Number.isFinite(v?.asset) && v.asset > 0), `${snapValues.length} 条`)
 
 const adjustNotes = capitalLogs.filter(l => l.category === 'adjust').map(l => parseAdjustNote(l.note))
 check('adjust 备注均可解析', adjustNotes.every(Boolean), `${adjustNotes.filter(Boolean).length}/9`)

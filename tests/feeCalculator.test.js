@@ -26,6 +26,14 @@ describe('feeCalculator（近3个月券商费率）', () => {
     expect(calcBuyFee(1000, '002364')).toBe(5)
   })
 
+  it('最低 5 元只加在佣金上：真视通卖 1,582 → 5.79', () => {
+    expect(calcSellFee(1582, '002771')).toBe(5.79)
+  })
+
+  it('最低 5 元只加在佣金上：百邦卖 3,142 → 6.57', () => {
+    expect(calcSellFee(3142, '300736')).toBe(6.57)
+  })
+
   it('金额为 0 时返回 0', () => {
     expect(calcBuyFee(0, '002364')).toBe(0)
     expect(calcSellFee(0, '002364')).toBe(0)

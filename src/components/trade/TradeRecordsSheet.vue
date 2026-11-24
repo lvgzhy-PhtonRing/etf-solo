@@ -58,7 +58,7 @@
 
           <div v-if="!filteredLogs.length" class="filter-empty">该股票暂无交易记录</div>
           <div v-else class="trade-log-list">
-            <van-swipe-cell v-for="log in displayedLogs" :key="log.id" :right-width="140">
+            <van-swipe-cell v-for="log in displayedLogs" :key="log.id" :right-width="isOpeningTrade(log) ? 0 : 140">
               <div class="trade-log-item">
                 <div class="tli-body">
                   <div class="tli-header">
@@ -73,6 +73,7 @@
                     <span> · {{ formatMoney(log.amount) }}</span>
                     <span v-if="log.fee > 0" class="tli-fee">· 费 {{ formatMoney(log.fee) }}</span>
                     <span> · {{ formatDateString(log.trade_date) }}</span>
+                    <span v-if="isOpeningTrade(log)" class="tli-fee">· 期初</span>
                   </div>
                 </div>
                 <span class="tli-arrow">›</span>
@@ -120,7 +121,7 @@
               <span class="dlg-value num-mono">含费 {{ formatMoney(editComputedActual) }}</span>
             </div>
             <div class="dlg-field dlg-half">
-              <label class="dlg-label">手续费（{{ editingTrade?.type === 'sell' ? '0.5954' : '0.0854' }}‰）</label>
+              <label class="dlg-label">手续费（佣金 1.5846‰{{ editingTrade?.type === 'sell' ? ' + 印花税 0.5‰' : '' }}）</label>
               <span class="dlg-value num-mono">{{ formatMoney(editFee) }}</span>
             </div>
           </div>
@@ -172,6 +173,7 @@
 import { ref, computed, watch } from 'vue'
 import { formatMoney, formatPrice } from '@/utils/formatters'
 import { calcBuyFee, calcSellFee } from '@/utils/feeCalculator'
+import { calcHoldingAfterDelete, calcHoldingAfterEdit, calcTradeEdit } from '@/utils/calculators'
 import {
   updateCapitalLog, deleteCapitalLog, updateTransaction, deleteTransaction,
   fetchTransactionsByStock, deleteHolding, upsertHolding
@@ -286,6 +288,32 @@ const editFee = ref(0)
 const editComputedAmount = ref(0)
 const editComputedActual = ref(0)
 
+function isOpeningTrade(log) {
+  return String(log?.note || '').startsWith('期初建仓')
+}
+
+async function currentHoldingFor(stockCode) {
+  let holding = holdingStore.holdings.find(h => h.stock_code === stockCode)
+  if (!holding) {
+    await holdingStore.loadHoldings()
+    holding = holdingStore.holdings.find(h => h.stock_code === stockCode)
+  }
+  return holding || null
+}
+
+async function applyHoldingResult(stockCode, stockName, result) {
+  if (!result || result.quantity <= 0) {
+    await deleteHolding(stockCode)
+    return
+  }
+  await upsertHolding({
+    stock_code: stockCode,
+    stock_name: stockName || '',
+    quantity: result.quantity,
+    cost_price: parseFloat(result.costPrice.toFixed(6))
+  })
+}
+
 function matchedCapLog(tx) {
   return findTradeLog(fundStore.capitalLogs, tx)
 }
@@ -307,7 +335,12 @@ function startEditTrade(log) {
   editStockCode.value = log.stock_code || ''
   editDate.value = log.trade_date || ''
   editPrice.value = String(log.price || '')
-  onEditPriceOrQtyChange()
+  // 先展示实际 amount/fee；只有价格或数量变化时才在 @input 里重算
+  const amount = Number(log.amount) || 0
+  const fee = Number(log.fee) || 0
+  editComputedAmount.value = amount
+  editFee.value = fee
+  editComputedActual.value = log.type === 'sell' ? amount - fee : amount + fee
 }
 
 async function recalcHolding(stockCode, stockName) {
@@ -325,25 +358,47 @@ async function recalcHolding(stockCode, stockName) {
 
 async function saveEditTrade() {
   if (!editingTrade.value) return
+  if (isOpeningTrade(editingTrade.value)) {
+    alert('期初建仓是净值基准，不能编辑')
+    return
+  }
   const price = parseFloat(editPrice.value)
   const newQty = parseInt(editQuantity.value) || 0
   if (!price || price <= 0 || !newQty) return
-  const amount = parseFloat((price * newQty).toFixed(2))
   const log = editingTrade.value
   const isSell = log.type === 'sell'
-  const fee = isSell ? calcSellFee(amount, log.stock_code) : calcBuyFee(amount, log.stock_code)
-  const actualAmount = isSell ? parseFloat((amount - fee).toFixed(2)) : parseFloat((amount + fee).toFixed(2))
+  const edit = calcTradeEdit(log, price, newQty, amount =>
+    isSell ? calcSellFee(amount, log.stock_code) : calcBuyFee(amount, log.stock_code))
   try {
-    const txUpdates = { quantity: newQty, amount, price, fee, note: editNote.value || log.note || '' }
+    const txUpdates = {
+      quantity: newQty,
+      amount: edit.amount,
+      price: edit.price,
+      fee: edit.fee,
+      note: editNote.value || log.note || ''
+    }
     if (editDate.value) txUpdates.trade_date = editDate.value
     await updateTransaction(log.id, txUpdates)
     txStore.transactions = txStore.transactions.map(t => t.id === log.id ? { ...t, ...txUpdates } : t)
 
     const cap = matchedCapLog(log)
     if (cap) {
-      await updateCapitalLog(cap.id, { amount: actualAmount })
+      await updateCapitalLog(cap.id, { amount: edit.actualAmount })
     }
-    await recalcHolding(log.stock_code, log.stock_name)
+
+    const holding = await currentHoldingFor(log.stock_code)
+    if (holding) {
+      const result = calcHoldingAfterEdit(holding.cost_price, holding.quantity, log, {
+        type: log.type,
+        quantity: newQty,
+        amount: edit.amount,
+        fee: edit.fee
+      })
+      await applyHoldingResult(log.stock_code, log.stock_name || holding.stock_name, result)
+    } else {
+      // 已清仓股票没有当前持仓可回滚，退回全流水重算
+      await recalcHolding(log.stock_code, log.stock_name)
+    }
     await Promise.all([fundStore.loadCapitalLogs(), holdingStore.loadHoldings(), txStore.loadTransactions()])
     editingTrade.value = null
     emit('changed')
@@ -357,12 +412,24 @@ function confirmDeleteTrade(log) { deletingTrade.value = log }
 async function doDeleteTrade() {
   if (!deletingTrade.value) return
   const log = deletingTrade.value
+  if (isOpeningTrade(log)) {
+    alert('期初建仓是净值基准，不能删除')
+    deletingTrade.value = null
+    return
+  }
   try {
+    const holding = await currentHoldingFor(log.stock_code)
     await deleteTransaction(log.id)
     txStore.transactions = txStore.transactions.filter(t => t.id !== log.id)
     const cap = matchedCapLog(log)
     if (cap) await deleteCapitalLog(cap.id)
-    await recalcHolding(log.stock_code, log.stock_name)
+    if (holding) {
+      const result = calcHoldingAfterDelete(holding.cost_price, holding.quantity, log)
+      await applyHoldingResult(log.stock_code, log.stock_name || holding.stock_name, result)
+    } else {
+      // 已清仓股票没有当前持仓可回滚，退回全流水重算
+      await recalcHolding(log.stock_code, log.stock_name)
+    }
     await Promise.all([fundStore.loadCapitalLogs(), holdingStore.loadHoldings(), txStore.loadTransactions()])
     deletingTrade.value = null
     emit('changed')

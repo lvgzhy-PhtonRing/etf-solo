@@ -17,22 +17,23 @@ function isFund(stockCode) {
   return /^(5|15|16|18)/.test(stockCode || '')
 }
 
-/** 计算买入手续费 */
+const round2 = n => Math.round((n + Number.EPSILON) * 100) / 100
+
+/** 计算买入手续费（最低 5 元只作用于佣金） */
 export function calcBuyFee(amount, stockCode = '') {
   if (!(amount > 0)) return 0
-  const rate = COMMISSION_RATE + (isShanghai(stockCode) ? TRANSFER_RATE : 0)
-  const fee = Math.round(amount * rate * 100) / 100
-  return Math.max(fee, MIN_FEE)
+  const commission = Math.max(round2(amount * COMMISSION_RATE), MIN_FEE)
+  const transfer = isShanghai(stockCode) ? round2(amount * TRANSFER_RATE) : 0
+  return round2(commission + transfer)
 }
 
-/** 计算卖出手续费（佣金 + 印花税 + 沪市过户费） */
+/** 计算卖出手续费（佣金 + 印花税 + 沪市过户费；最低 5 元只作用于佣金） */
 export function calcSellFee(amount, stockCode = '') {
   if (!(amount > 0)) return 0
-  const rate = COMMISSION_RATE
-    + (isFund(stockCode) ? 0 : STAMP_RATE)
-    + (isShanghai(stockCode) ? TRANSFER_RATE : 0)
-  const fee = Math.round(amount * rate * 100) / 100
-  return Math.max(fee, MIN_FEE)
+  const commission = Math.max(round2(amount * COMMISSION_RATE), MIN_FEE)
+  const stamp = isFund(stockCode) ? 0 : round2(amount * STAMP_RATE)
+  const transfer = isShanghai(stockCode) ? round2(amount * TRANSFER_RATE) : 0
+  return round2(commission + stamp + transfer)
 }
 
 /** 买入：计算含手续费的实际金额和成本价 */
