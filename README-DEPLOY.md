@@ -4,7 +4,7 @@
 
 1. 打开 Supabase Dashboard，选择项目 **goofish-board**（ref `efysjvbbaxwalhbbjxdc`）
 2. SQL Editor → 粘贴 `supabase/solo_init.sql` → Run
-3. Settings → API → 复制 **Project URL** 与 **anon public key**，写入本地 `src/.env`：
+3. Settings → API → 复制 **Project URL** 与 **anon public key**，写入项目**根目录** `.env`（Vite 不读取 `src/.env`）：
 
 ```
 VITE_SUPABASE_URL=https://efysjvbbaxwalhbbjxdc.supabase.co
@@ -33,8 +33,8 @@ npx supabase functions deploy backup      --project-ref efysjvbbaxwalhbbjxdc
 
 1. 新建 **私有** 仓库 `etf-solo` 并推送 main（私有仓库使用 Pages 需要 GitHub Pro；免费账户请把仓库设为公开或改用 Vercel）
 2. Settings → Secrets and variables → Actions 添加：
-   - `VITE_SUPABASE_URL`
-   - `VITE_SUPABASE_ANON_KEY`
+   - `SUPABASE_URL`
+   - `SUPABASE_ANON_KEY`
 3. Settings → Pages → Source 选 **GitHub Actions**
 4. 推送后 Actions 自动构建发布
 
