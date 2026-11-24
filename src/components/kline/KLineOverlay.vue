@@ -276,7 +276,7 @@ async function refreshPrice() {
   if (d && d.price) {
     currentPrice.value = d.price
     changePct.value = Number(d.change_pct) || 0
-    if (priceOverlayId) {
+    if (chart && priceOverlayId) {
       chart.overrideOverlay({ id: priceOverlayId, points: [{ dataIndex: 0, value: currentPrice.value }] })
     }
   }
@@ -341,6 +341,10 @@ function initChart() {
       error.value = ''
       try {
         const data = await fetchKLine(symbol.ticker, kdPeriod.type)
+        if (!chart) {
+          callback([])
+          return
+        }
         if (!data.length) {
           error.value = '暂无K线数据'
           callback([])
@@ -455,6 +459,7 @@ onBeforeUnmount(() => {
     dispose(chartRef.value)
     chart = null
   }
+  priceOverlayId = null
   exitFullscreen()
 })
 </script>
