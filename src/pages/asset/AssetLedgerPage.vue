@@ -1,7 +1,7 @@
 <template>
   <div class="page ledger-page">
     <div class="page-header">
-      <span class="page-title">收支账本<span class="page-sub">账面出入账记录</span></span>
+      <span class="page-title">账目流水<span class="page-sub">账面出入账记录</span></span>
     </div>
 
     <LoadErrorTip v-if="store.error" :message="store.error" @retry="store.loadAll()" />
