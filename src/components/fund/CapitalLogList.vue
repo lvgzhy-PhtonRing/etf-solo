@@ -1,14 +1,14 @@
 <template>
   <div class="capital-log-list">
     <div class="log-header">
-      <span class="log-title">资本流水</span>
+      <span class="log-title">{{ title }}</span>
       <span class="swipe-hint" v-if="hasEditable">◀ 左滑编辑</span>
       <span class="log-count" v-if="logs.length">共 {{ logs.length }} 条</span>
     </div>
     <div v-if="!logs.length"><EmptyState icon="💰" text="暂无资金变动记录" /></div>
     <div v-else class="trade-log-list">
       <van-swipe-cell v-for="log in logs" :key="log.id" :right-width="editable(log) ? 140 : 0">
-        <div class="trade-log-item">
+        <div class="trade-log-item" :class="{ 'is-expandable': hasItems(log) }" @click="toggle(log)">
           <div class="tli-body">
             <div class="tli-header">
               <span class="tli-action" :class="log.type === 'add' ? 'rise' : 'fall'">{{ labelOf(log) }}</span>
@@ -19,9 +19,20 @@
             <div v-if="noteText(log)" class="tli-note">{{ noteText(log) }}</div>
             <div class="tli-meta">
               <span>{{ formatDateString(log.created_at) }}</span>
+              <span v-if="showRunning && log.running !== undefined"> · 余额 {{ formatMoney(log.running) }}</span>
+            </div>
+            <div v-if="expandedIds.includes(log.id)" class="detail-breakdown">
+              <div v-for="(item, i) in itemsOf(log)" :key="i" class="detail-breakdown-row">
+                <span>
+                  {{ ADJUST_LABELS[item.category] || item.category }}
+                  <span v-if="item.stockName" class="detail-stock-name">{{ item.stockName }}</span>
+                </span>
+                <span class="num-mono" :class="item.signedAmount < 0 ? 'fall' : 'rise'">{{ formatSignedCents(item.signedAmount) }}</span>
+              </div>
             </div>
           </div>
-          <span class="tli-arrow" v-if="editable(log)">›</span>
+          <span class="tli-arrow" v-if="hasItems(log)">{{ expandedIds.includes(log.id) ? '⌄' : '›' }}</span>
+          <span class="tli-arrow" v-else-if="editable(log)">›</span>
         </div>
         <template #right>
           <div class="swipe-actions" v-if="editable(log)">
@@ -94,7 +105,11 @@ import { marketDate } from '@/utils/historicalSnapshotLedger'
 import { useFundStore } from '@/stores/funds'
 import EmptyState from '@/components/common/EmptyState.vue'
 
-const props = defineProps({ logs: { type: Array, default: () => [] } })
+const props = defineProps({
+  logs: { type: Array, default: () => [] },
+  title: { type: String, default: '资本流水' },
+  showRunning: { type: Boolean, default: false }
+})
 
 const fundStore = useFundStore()
 const editing = ref(null)
@@ -103,6 +118,7 @@ const editNote = ref('')
 const editDate = ref('')
 const deleting = ref(null)
 const error = ref('')
+const expandedIds = ref([])
 
 const round2 = n => Math.round((Number(n) + Number.EPSILON) * 100) / 100
 
@@ -117,8 +133,35 @@ const itemized = computed(() => Boolean(parseAdjustNote(editing.value?.note)?.it
 
 function labelOf(log) {
   if (log.category === 'trade') return log.type === 'add' ? '卖出' : '买入'
-  if (log.category === 'adjust') return '调整'
+  if (log.category === 'adjust') {
+    const items = itemsOf(log)
+    if (items.length === 1) return ADJUST_LABELS[items[0].category] || '调整'
+    return '调整'
+  }
+  if (String(log.note || '').startsWith('期初结转')) return '基准'
+  if (log.note === '银证转入') return '转入'
+  if (log.note === '银证转出') return '转出'
   return log.type === 'add' ? '增资' : '减资'
+}
+
+function itemsOf(log) {
+  return parseAdjustNote(log?.note)?.items || []
+}
+
+function hasItems(log) {
+  return log.category === 'adjust' && itemsOf(log).length > 0
+}
+
+function toggle(log) {
+  if (!hasItems(log)) return
+  expandedIds.value = expandedIds.value.includes(log.id)
+    ? expandedIds.value.filter(id => id !== log.id)
+    : [...expandedIds.value, log.id]
+}
+
+function formatSignedCents(cents) {
+  const value = (Number(cents) || 0) / 100
+  return `${value >= 0 ? '+' : ''}${value.toFixed(2)}`
 }
 
 function noteText(log) {
@@ -220,6 +263,12 @@ async function doDelete() {
 .tli-note { font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; line-height: 1.5; }
 .tli-meta { font-size: 11px; color: var(--text-muted); }
 .tli-arrow { font-size: 16px; color: var(--text-muted); opacity: 0.3; flex-shrink: 0; }
+.trade-log-item.is-expandable { cursor: pointer; }
+.detail-breakdown { padding: 6px 0 0 16px; display: grid; gap: 3px; }
+.detail-breakdown-row { display: flex; justify-content: space-between; gap: 8px; font-size: 11px; color: var(--text-secondary); line-height: 1.35; }
+.detail-stock-name { margin-left: 5px; color: var(--text-muted); }
+.detail-breakdown-row .rise { color: var(--color-rise); }
+.detail-breakdown-row .fall { color: var(--color-fall); }
 
 .swipe-actions { display: flex; height: 100%; }
 .swipe-edit-btn { width: 70px; border: none; background: var(--bg-accent); color: #fff; font-size: 13px; font-weight: 500; cursor: pointer; }

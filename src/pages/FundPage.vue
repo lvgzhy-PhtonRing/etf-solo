@@ -9,11 +9,12 @@
       :total-capital="totalCapital"
       :total-available="totalAvailable"
       :total-asset="totalAsset"
+      @open-detail="showCapitalDetail = true"
     />
 
     <LoadingSkeleton v-if="loading" :count="2" />
     <template v-else>
-      <!-- 分类小计 -->
+      <!-- 分类小计：只算调整（红利/利息/税等） -->
       <div class="section-card edge-accent">
         <div class="section-title">
           <span class="title-accent title-accent--accent"></span>分类小计
@@ -26,8 +27,10 @@
         </div>
       </div>
 
-      <CapitalLogList :logs="capitalLogs" />
+      <CapitalLogList :logs="adjustLogs" />
     </template>
+
+    <CapitalDetailDialog v-model:show="showCapitalDetail" :logs="capitalLogs" />
   </div>
 </template>
 
@@ -38,9 +41,10 @@ import { useFundStore } from '@/stores/funds'
 import { useHoldingStore } from '@/stores/holdings'
 import { usePriceStore } from '@/stores/prices'
 import { formatMoney } from '@/utils/formatters'
-import { ADJUST_LABELS, parseAdjustNote } from '@/utils/adjustItems'
+import { computeAdjustCategories } from '@/utils/capitalCategories'
 import CapitalSummary from '@/components/fund/CapitalSummary.vue'
 import CapitalLogList from '@/components/fund/CapitalLogList.vue'
+import CapitalDetailDialog from '@/components/fund/CapitalDetailDialog.vue'
 import LoadingSkeleton from '@/components/common/LoadingSkeleton.vue'
 const loadError = computed(() => holdingStore.error || fundStore.error || priceStore.error || '')
 function retryLoad() { location.reload() }
@@ -50,8 +54,12 @@ const fundStore = useFundStore()
 const holdingStore = useHoldingStore()
 const priceStore = usePriceStore()
 const loading = ref(true)
+const showCapitalDetail = ref(false)
 
-const capitalLogs = computed(() => fundStore.capitalLogs)
+// 资本总览明细：仅外部资本（基准 + 银证转入/转出）
+const capitalLogs = computed(() => fundStore.capitalLogs.filter(l => l.category === 'capital'))
+// 资本流水：仅红利/利息/税等调整；股票买卖看交易记录
+const adjustLogs = computed(() => fundStore.capitalLogs.filter(l => l.category === 'adjust'))
 const totalCapital = computed(() => fundStore.totalCapital)
 const totalAvailable = computed(() => fundStore.totalAvailable)
 
@@ -63,50 +71,7 @@ const totalMarketValue = computed(() => {
 })
 const totalAsset = computed(() => totalMarketValue.value + totalAvailable.value)
 
-const categories = computed(() => {
-  const sums = {
-    capitalIn: 0,
-    capitalOut: 0,
-    tradeNet: 0,
-    stock_dividend: 0,
-    interest: 0,
-    reverse_repo: 0,
-    dividend_tax: 0,
-    fee_error: 0,
-    otherAdjust: 0
-  }
-  for (const l of fundStore.capitalLogs) {
-    const signed = l.type === 'add' ? l.amount : -l.amount
-    if (l.category === 'capital') {
-      if (signed >= 0) sums.capitalIn += signed
-      else sums.capitalOut += signed
-    } else if (l.category === 'trade') {
-      sums.tradeNet += signed
-    } else if (l.category === 'adjust') {
-      const data = parseAdjustNote(l.note)
-      if (data?.items?.length) {
-        for (const it of data.items) {
-          const amt = (it.signedAmount || 0) / 100
-          if (sums[it.category] !== undefined) sums[it.category] += amt
-          else sums.otherAdjust += amt
-        }
-      } else {
-        sums.otherAdjust += signed
-      }
-    }
-  }
-  return [
-    { key: 'capitalIn', label: '入金合计', value: sums.capitalIn },
-    { key: 'capitalOut', label: '出金合计', value: sums.capitalOut },
-    { key: 'tradeNet', label: '买卖净额', value: sums.tradeNet },
-    ...Object.entries(ADJUST_LABELS).map(([key, label]) => ({ key, label, value: sums[key] })),
-    { key: 'otherAdjust', label: '其他调整', value: sums.otherAdjust }
-  ]
-})
-
-function parseAdjust(note) {
-  return parseAdjustNote(note)
-}
+const categories = computed(() => computeAdjustCategories(adjustLogs.value))
 
 function formatSigned(v) {
   return `${v > 0 ? '+' : ''}${formatMoney(v)}`

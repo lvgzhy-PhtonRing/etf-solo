@@ -39,7 +39,7 @@ function switchTo(section) {
   border: 1px solid var(--border-soft);
 }
 .seg-btn {
-  min-width: 56px;
+  min-width: 112px;
   padding: 5px 14px;
   border: none;
   border-radius: 9px;

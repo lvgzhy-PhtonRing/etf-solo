@@ -18,6 +18,7 @@
         <span class="cs-item-value num-mono">{{ formatMoney(totalAsset) }}</span>
       </div>
     </div>
+    <button class="cs-btn" @click="$emit('open-detail')">资本流水明细</button>
   </div>
 </template>
 
@@ -29,6 +30,7 @@ defineProps({
   totalAvailable: { type: Number, default: 0 },
   totalAsset: { type: Number, default: 0 }
 })
+defineEmits(['open-detail'])
 </script>
 
 <style scoped>
@@ -60,4 +62,17 @@ defineProps({
 .cs-item { background: var(--bg-hover); border-radius: var(--radius-md); padding: 8px 10px; display: flex; flex-direction: column; }
 .cs-item-label { font-size: 11px; color: var(--text-secondary); }
 .cs-item-value { font-size: 14px; font-weight: 600; font-family: var(--font-number); }
+.cs-btn {
+  width: 100%;
+  padding: 11px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--bg-accent);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+.cs-btn:active { opacity: 0.85; }
 </style>
