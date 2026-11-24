@@ -20,7 +20,7 @@
 import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { pokerChart } from '@/utils/assetPoker'
 import { formatMoney } from '@/utils/formatters'
-import { weekLabel, weekKey } from '@/utils/assetLedger'
+import { weekLabel } from '@/utils/assetLedger'
 
 const props = defineProps({
   bars: { type: Array, default: () => [] },

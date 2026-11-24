@@ -10,7 +10,7 @@
     <div class="mode-card">
       <div class="period-nav">
         <button class="nav-btn" @click="offset--">‹</button>
-        <span class="period-label">{{ periodLabel }}</span>
+        <span class="period-label">{{ periodText }}</span>
         <button class="nav-btn" :disabled="offset >= 0" @click="offset++">›</button>
       </div>
       <div class="mode-tabs">
@@ -62,16 +62,22 @@
           <div v-for="it in expense.items" :key="it.category" class="cat-item" @click="openDetail('expense', it.category)">
             <div class="cat-line">
               <span class="cat-name">{{ it.category }}</span>
+              <div class="cat-track">
+                <div class="cat-fill" :style="{ width: barWidth(it.amount, expense.items) + '%', background: categoryColor(it.category) }"></div>
+              </div>
               <span class="cat-amt num-mono">{{ formatMoney(it.amount) }}</span>
-              <span class="cat-pct">{{ it.pct }}%</span>
-            </div>
-            <div class="cat-track">
-              <div class="cat-fill cat-fill--expense" :style="{ width: barWidth(it.amount, expense.items) + '%' }"></div>
+              <span class="cat-pct">{{ Math.round(it.pct) }}%</span>
             </div>
             <div v-if="detail.type === 'expense' && detail.category === it.category" class="cat-detail">
+              <div class="cd-head">
+                <span>共 {{ detail.flows.length }} 条</span>
+                <span>合计 {{ formatMoney(detail.total) }}</span>
+              </div>
               <div v-for="f in detail.flows" :key="f.id" class="cd-row">
-                <span class="cd-title">{{ f.note || f.category }}</span>
-                <span class="cd-meta">{{ f.date.slice(5) }} · {{ f.account || '—' }}</span>
+                <div class="cd-left">
+                  <span class="cd-title">{{ f.note || f.category }}</span>
+                  <span class="cd-meta">{{ f.date.slice(5) }} · {{ f.account || '—' }}</span>
+                </div>
                 <span class="cd-amt num-mono fall">-{{ formatMoney(Math.abs(f.amount)) }}</span>
               </div>
             </div>
@@ -90,16 +96,22 @@
           <div v-for="it in income.items" :key="it.category" class="cat-item" @click="openDetail('income', it.category)">
             <div class="cat-line">
               <span class="cat-name">{{ it.category }}</span>
+              <div class="cat-track">
+                <div class="cat-fill" :style="{ width: barWidth(it.amount, income.items) + '%', background: categoryColor(it.category) }"></div>
+              </div>
               <span class="cat-amt num-mono">{{ formatMoney(it.amount) }}</span>
-              <span class="cat-pct">{{ it.pct }}%</span>
-            </div>
-            <div class="cat-track">
-              <div class="cat-fill cat-fill--income" :style="{ width: barWidth(it.amount, income.items) + '%' }"></div>
+              <span class="cat-pct">{{ Math.round(it.pct) }}%</span>
             </div>
             <div v-if="detail.type === 'income' && detail.category === it.category" class="cat-detail">
+              <div class="cd-head">
+                <span>共 {{ detail.flows.length }} 条</span>
+                <span>合计 {{ formatMoney(detail.total) }}</span>
+              </div>
               <div v-for="f in detail.flows" :key="f.id" class="cd-row">
-                <span class="cd-title">{{ f.note || f.category }}</span>
-                <span class="cd-meta">{{ f.date.slice(5) }} · {{ f.account || '—' }}</span>
+                <div class="cd-left">
+                  <span class="cd-title">{{ f.note || f.category }}</span>
+                  <span class="cd-meta">{{ f.date.slice(5) }} · {{ f.account || '—' }}</span>
+                </div>
                 <span class="cd-amt num-mono rise">+{{ formatMoney(Math.abs(f.amount)) }}</span>
               </div>
             </div>
@@ -117,8 +129,9 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import LoadErrorTip from '@/components/common/LoadErrorTip.vue'
 import LoadingSkeleton from '@/components/common/LoadingSkeleton.vue'
 import { useAssetStore } from '@/stores/assets'
-import { STATS_MODES, statsWindow, flowsInWindow, aggregateByCategory, excludePoker } from '@/utils/assetStats'
+import { STATS_MODES, statsWindow, flowsInWindow, aggregateByCategory, excludePoker, periodLabel } from '@/utils/assetStats'
 import { formatMoney } from '@/utils/formatters'
+import { categoryColor } from '@/utils/assetCategories'
 
 const store = useAssetStore()
 
@@ -142,11 +155,12 @@ const totalIncome = computed(() => income.value.total)
 const totalExpense = computed(() => expense.value.total)
 const net = computed(() => Math.round((totalIncome.value - totalExpense.value) * 100) / 100)
 
-const periodLabel = computed(() => {
-  const w = win.value
-  if (!w) return '请选择日期'
-  if (mode.value === 'custom') return `${w.start} 至 ${w.end.slice(0, 10)}`
-  return `${w.start} ~ ${w.end.slice(0, 10)}`
+const periodText = computed(() => {
+  if (mode.value === 'custom' && (!customStart.value || !customEnd.value)) return '请选择日期'
+  return periodLabel(mode.value, win.value, {
+    customStart: customStart.value,
+    customEnd: customEnd.value
+  })
 })
 
 function barWidth(amount, items) {
@@ -165,23 +179,34 @@ function setMode(m) {
   }
 }
 
-function refresh() {}
+function refresh() {
+  if (!customStart.value || !customEnd.value) {
+    alert('请选择起止日期')
+    return
+  }
+  if (customStart.value > customEnd.value) {
+    alert('起始日期不能晚于结束日期')
+  }
+}
 
-const detail = reactive({ type: '', category: '', flows: [] })
+const detail = reactive({ type: '', category: '', flows: [], total: 0 })
 
 function openDetail(type, category) {
   if (detail.type === type && detail.category === category) {
     detail.type = ''
     detail.category = ''
     detail.flows = []
+    detail.total = 0
     return
   }
-  detail.type = type
-  detail.category = category
-  detail.flows = inWindow.value
+  const flows = inWindow.value
     .filter(f => f.type === type && f.category === category)
     .slice()
     .sort((a, b) => (a.date < b.date ? 1 : -1))
+  detail.type = type
+  detail.category = category
+  detail.flows = flows
+  detail.total = Math.round(flows.reduce((s, f) => s + Math.abs(Number(f.amount) || 0), 0) * 100) / 100
 }
 
 onMounted(() => {
@@ -237,22 +262,27 @@ onMounted(() => {
 .dot--income { background: var(--color-rise); }
 .cat-title { font-size: 13px; font-weight: 600; }
 .cat-empty { text-align: center; padding: 14px 0; font-size: 12px; color: var(--text-muted); }
-.cat-list { display: flex; flex-direction: column; gap: 12px; }
+.cat-list { display: flex; flex-direction: column; gap: 10px; }
 .cat-item { cursor: pointer; }
-.cat-line { display: flex; align-items: baseline; gap: 8px; font-size: 12px; }
-.cat-name { flex: 1; font-weight: 500; }
-.cat-amt { font-weight: 600; }
-.cat-pct { width: 44px; text-align: right; font-size: 10px; color: var(--text-muted); }
-.cat-track { height: 6px; border-radius: 3px; background: var(--bg-hover); margin-top: 5px; overflow: hidden; }
-.cat-fill { height: 100%; border-radius: 3px; }
-.cat-fill--expense { background: var(--color-rise); opacity: .8; }
-.cat-fill--income { background: var(--color-fall); opacity: .8; }
+.cat-line { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.cat-name { width: 74px; flex-shrink: 0; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cat-track { flex: 1; height: 8px; border-radius: 4px; background: var(--bg-hover); overflow: hidden; }
+.cat-fill { height: 100%; border-radius: 4px; }
+.cat-amt { width: 86px; text-align: right; font-weight: 600; }
+.cat-pct { width: 32px; text-align: right; font-size: 10px; color: var(--text-muted); }
 
-.cat-detail { margin-top: 8px; padding: 8px 10px; background: var(--bg-hover); border-radius: var(--radius-md); display: flex; flex-direction: column; gap: 6px; }
-.cd-row { display: flex; align-items: baseline; gap: 6px; font-size: 11px; }
-.cd-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-primary); }
+.cat-detail { margin-top: 8px; border: 1px solid var(--border-soft); border-radius: var(--radius-md); overflow: hidden; }
+.cd-head {
+  display: flex; justify-content: space-between;
+  background: var(--bg-subtle);
+  padding: 6px 10px;
+  font-size: 11px; font-weight: 700; color: var(--text-secondary);
+}
+.cd-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 10px; }
+.cd-left { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cd-title { font-size: 12px; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cd-meta { font-size: 10px; color: var(--text-muted); }
-.cd-amt { font-weight: 700; font-family: var(--font-number); }
+.cd-amt { font-weight: 700; font-family: var(--font-number); font-size: 12px; }
 
 .stat-hint { text-align: center; font-size: 10px; color: var(--text-muted); padding: 4px 0 8px; }
 </style>

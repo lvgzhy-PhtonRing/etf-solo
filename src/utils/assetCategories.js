@@ -6,15 +6,19 @@ export const ACCOUNTS = ['微信支付', '支付宝', '银行卡']
 export const DZ_MODES = ['线上', '线下']
 
 export const CATEGORY_COLORS = {
-  生活购物: '#c98a2c',
-  数字服务: '#5b8def',
-  差旅交通: '#2e8b57',
-  德州入账: '#d64545',
-  德州出账: '#b5482f',
-  公款转入: '#7a5cd6',
-  归还A队: '#8a8f98',
-  初始资金: '#bf6b3f',
-  其他: '#a89f91'
+  生活购物: '#22c55e',
+  数字服务: '#3b82f6',
+  差旅交通: '#eab308',
+  德州入账: '#ef4444',
+  德州出账: '#ef4444',
+  公款转入: '#d97706',
+  归还A队: '#a855f7',
+  初始资金: '#f59e0b',
+  其他: '#9ca3af'
+}
+
+export function categoryColor(cat) {
+  return CATEGORY_COLORS[cat] || '#9ca3af'
 }
 
 export function categoriesOf(type) {

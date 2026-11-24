@@ -193,7 +193,7 @@ import { ref, reactive, computed, onMounted, watch } from 'vue'
 import LoadErrorTip from '@/components/common/LoadErrorTip.vue'
 import LoadingSkeleton from '@/components/common/LoadingSkeleton.vue'
 import { useAssetStore } from '@/stores/assets'
-import { ACCOUNT_GROUPS, ADJUSTMENTS, calcAssets } from '@/utils/assetCalc'
+import { ADJUSTMENTS, calcAssets } from '@/utils/assetCalc'
 import { formatMoney } from '@/utils/formatters'
 import {
   createSnapshot, flatList, deleteSnapshot, timeOf,
@@ -316,7 +316,10 @@ function onDeleteSnapshot(s) {
   selected.value = selected.value.filter(x => !(x.date === s.date && x.idx === s.idx))
 }
 
-const compare = computed(() => buildCompare(selected.value, currentSnapshot()))
+const compare = computed(() => buildCompare(
+  selected.value,
+  selected.value.length === 1 ? currentSnapshot() : null
+))
 const logDiff = computed(() => {
   if (selected.value.length < 2) return { added: [], removed: [] }
   const sorted = [...selected.value].sort((a, b) => a.timestamp - b.timestamp)

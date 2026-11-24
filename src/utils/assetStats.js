@@ -55,6 +55,39 @@ export function flowsInWindow(flows, w) {
   return (flows || []).filter(f => f.date >= w.start && f.date < w.end)
 }
 
+function parseDate(s) {
+  const [y, m, d] = String(s).split('-').map(Number)
+  return new Date(y, m - 1, d)
+}
+
+const fmtMD = d => `${d.getMonth() + 1}/${d.getDate()}`
+const fmtYM = d => `${d.getFullYear()}/${d.getMonth() + 1}`
+const yy = d => String(d.getFullYear()).slice(2)
+
+/**
+ * 周期标签（对齐源程序 getStatsPeriodLabel）
+ */
+export function periodLabel(mode, w, { customStart, customEnd } = {}) {
+  if (!w) return ''
+  if (mode === 'custom') return `${customStart} ~ ${customEnd}`
+
+  const start = parseDate(w.start)
+  const endExcl = parseDate(w.end)
+
+  if (mode === 'month') return `${start.getFullYear()}年${start.getMonth() + 1}月`
+  if (mode === 'half' || mode === 'year') {
+    const lastMonth = new Date(endExcl.getFullYear(), endExcl.getMonth() - 1, 1)
+    return `${fmtYM(start)}~${fmtYM(lastMonth)}`
+  }
+
+  const last = new Date(endExcl)
+  last.setDate(last.getDate() - 1)
+  if (start.getFullYear() === last.getFullYear()) {
+    return `${fmtMD(start)}~${fmtMD(last)}`
+  }
+  return `${yy(start)}/${fmtMD(start)}~${yy(last)}/${fmtMD(last)}`
+}
+
 // 统计报表口径：排除德州入账/出账（源程序 renderStats 的过滤规则）
 export function excludePoker(flows) {
   return (flows || []).filter(f => f.category !== '德州入账' && f.category !== '德州出账')

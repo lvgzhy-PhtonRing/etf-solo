@@ -45,7 +45,7 @@
       <div v-for="g in groups" :key="g.key" class="group-item">
         <div class="group-header" @click="toggleGroup(g.key)">
           <div class="gh-left">
-            <svg class="gh-arrow" :class="{ 'gh-arrow--open': !isCollapsed(g) }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <svg class="gh-arrow" :class="{ 'gh-arrow--open': isCollapsed(g) }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
             </svg>
             <span class="gh-label">{{ g.label }}</span>
@@ -71,7 +71,7 @@
               <div class="flow-right">
                 <span class="badge" :class="badgeClass(f.category)">{{ f.category || '其他' }}</span>
                 <span v-if="f.dz_mode" class="badge" :class="f.dz_mode === '线上' ? 'badge--blue' : 'badge--green'">{{ f.dz_mode }}</span>
-                <span class="flow-amount num-mono" :class="f.amount > 0 ? 'rise' : (f.amount < 0 ? 'fall' : 'muted')">
+                <span class="flow-amount num-mono" :class="f.amount >= 0 ? 'rise' : 'fall'">
                   {{ f.amount > 0 ? '+' : '' }}{{ formatMoney(f.amount) }}
                 </span>
               </div>
