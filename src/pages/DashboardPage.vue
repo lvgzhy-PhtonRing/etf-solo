@@ -54,6 +54,7 @@
           v-for="h in displayHoldings"
           :key="h.stock_code"
           :stock="h"
+          :transactions="transactions"
           @tap="openKLine(h)"
           @sell="onSellStock"
         />
@@ -88,6 +89,7 @@ import KLineOverlay from '@/components/kline/KLineOverlay.vue'
 import BuySheet from '@/components/trade/BuySheet.vue'
 import SellSheet from '@/components/trade/SellSheet.vue'
 import TradeRecordsSheet from '@/components/trade/TradeRecordsSheet.vue'
+import { fetchAllTransactions } from '@/api/supabase'
 const loadError = computed(() => holdingStore.error || fundStore.error || priceStore.error || '')
 function retryLoad() { location.reload() }
 
@@ -101,12 +103,14 @@ const showBuySheet = ref(false)
 const showSellSheet = ref(false)
 const showRecordsSheet = ref(false)
 const sellStock = ref(null)
+const transactions = ref([])
 
 onMounted(async () => {
   try {
     await Promise.all([
       holdingStore.loadHoldings(),
-      fundStore.loadCapitalLogs()
+      fundStore.loadCapitalLogs(),
+      fetchAllTransactions().then(list => { transactions.value = list })
     ])
     const codes = holdingStore.stockCodes
     if (codes.length) {
@@ -152,6 +156,7 @@ async function onTradeChanged() {
     const { refreshHistoricalSnapshots } = await import('@/utils/historicalSnapshots')
     refreshHistoricalSnapshots({ afterLedgerChange: true }).catch(e => console.warn('历史快照暂未更新：', e))
     await Promise.all([holdingStore.loadHoldings(), fundStore.loadCapitalLogs()])
+    transactions.value = await fetchAllTransactions()
     const codes = holdingStore.stockCodes
     if (codes.length) {
       await priceStore.loadPrices(codes)

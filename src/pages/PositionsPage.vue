@@ -33,13 +33,23 @@
               :style="{ width: s.percent + '%', background: s.color }"></div>
           </div>
           <div class="stock-list">
-            <div v-for="s in stockShares" :key="s.code" class="stock-item">
-              <span class="stock-dot" :style="{ background: s.color }"></span>
-              <span class="stock-name">{{ s.name }}</span>
-              <span class="stock-qty num-mono">{{ s.quantity }}股</span>
-              <span class="stock-mv num-mono">{{ formatMoney(s.marketValue) }}</span>
-              <span class="stock-pct num-mono">{{ s.percent.toFixed(1) }}%</span>
-            </div>
+            <template v-for="s in stockShares" :key="s.code">
+              <div class="stock-item" @click="toggleTrades(s.code)">
+                <span class="stock-dot" :style="{ background: s.color }"></span>
+                <span class="stock-name">{{ s.name }}</span>
+                <span class="stock-qty num-mono">{{ s.quantity }}股</span>
+                <span class="stock-mv num-mono">{{ formatMoney(s.marketValue) }}</span>
+                <span class="stock-pct num-mono">{{ s.percent.toFixed(1) }}%</span>
+                <span class="stock-caret" :class="{ open: expandedCode === s.code }">▾</span>
+              </div>
+              <RecentTrades
+                v-if="expandedCode === s.code"
+                class="stock-trades"
+                :stock-code="s.code"
+                :transactions="transactions"
+                :count="5"
+              />
+            </template>
           </div>
           <div class="stock-sum">
             <span class="stock-sum-label">合计</span>
@@ -60,6 +70,8 @@ import { usePriceStore } from '@/stores/prices'
 import { formatMoney } from '@/utils/formatters'
 import { useFundStore } from '@/stores/funds'
 import DonutChart from '@/components/positions/DonutChart.vue'
+import RecentTrades from '@/components/trade/RecentTrades.vue'
+import { fetchAllTransactions } from '@/api/supabase'
 const loadError = computed(() => holdingStore.error || fundStore.error || priceStore.error || '')
 function retryLoad() { location.reload() }
 
@@ -69,6 +81,12 @@ const priceStore = usePriceStore()
 const fundStore = useFundStore()
 const loading = ref(true)
 const donutSize = 160
+const transactions = ref([])
+const expandedCode = ref('')
+
+function toggleTrades(code) {
+  expandedCode.value = expandedCode.value === code ? '' : code
+}
 
 const totalMarketValue = computed(() => {
   return holdingStore.holdings.reduce((s, h) => {
@@ -127,7 +145,8 @@ onMounted(async () => {
   try {
     await Promise.all([
       holdingStore.loadHoldings(),
-      fundStore.loadCapitalLogs()
+      fundStore.loadCapitalLogs(),
+      fetchAllTransactions().then(list => { transactions.value = list })
     ])
     const codes = holdingStore.stockCodes
     if (codes.length) await priceStore.loadPrices(codes)
@@ -163,12 +182,15 @@ onMounted(async () => {
 .stock-bar { display: flex; height: 10px; border-radius: 5px; overflow: hidden; background: var(--bg-subtle); margin: 14px 0 10px; }
 .stock-bar-seg { height: 100%; }
 .stock-list { display: flex; flex-direction: column; gap: 8px; }
-.stock-item { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.stock-item { display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer; }
 .stock-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 .stock-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
 .stock-qty { font-size: 11px; color: var(--text-muted); }
 .stock-mv { font-size: 12px; font-weight: 600; }
 .stock-pct { font-size: 12px; color: var(--text-secondary); width: 48px; text-align: right; }
+.stock-caret { font-size: 10px; color: var(--text-muted); flex-shrink: 0; transition: transform .2s; }
+.stock-caret.open { transform: rotate(180deg); }
+.stock-trades { margin-top: 6px; }
 .stock-sum { display: flex; align-items: baseline; justify-content: flex-end; gap: 6px; padding-top: 10px; border-top: 1px solid var(--border-soft); margin-top: 10px; }
 .stock-sum-label { font-size: 12px; color: var(--text-secondary); }
 .stock-sum-value { font-size: 14px; font-weight: 700; }

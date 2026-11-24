@@ -37,6 +37,17 @@
           收益率 {{ costReturn === null ? '—（成本已收回）' : `${costReturn >= 0 ? '+' : ''}${costReturn.toFixed(2)}%` }}
         </span>
       </div>
+      <div class="trades-toggle" @click.stop="showTrades = !showTrades">
+        <span>最近交易</span>
+        <span class="tt-caret" :class="{ open: showTrades }">▾</span>
+      </div>
+      <RecentTrades
+        v-if="showTrades"
+        class="holding-trades"
+        :stock-code="stock.stock_code"
+        :transactions="transactions"
+        :count="3"
+      />
     </div>
     <template #right>
       <div class="swipe-sell-btn" @click="$emit('sell', stock)">
@@ -47,14 +58,18 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import { formatMoney, formatPrice, formatQuantity, formatChange } from '@/utils/formatters'
+import RecentTrades from '@/components/trade/RecentTrades.vue'
 
 const props = defineProps({
-  stock: { type: Object, required: true }
+  stock: { type: Object, required: true },
+  transactions: { type: Array, default: () => [] }
 })
 
 defineEmits(['sell', 'tap'])
+
+const showTrades = ref(false)
 
 const costReturn = computed(() => {
   const cp = parseFloat(props.stock.cost_price) || 0
@@ -123,4 +138,16 @@ const costReturn = computed(() => {
   border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
   margin: 0 16px 10px 0;
 }
+.trades-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8px;
+  padding: 4px 2px 0;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.tt-caret { font-size: 10px; transition: transform .2s; }
+.tt-caret.open { transform: rotate(180deg); }
+.holding-trades { margin-top: 8px; }
 </style>

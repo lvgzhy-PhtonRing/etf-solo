@@ -7,7 +7,7 @@
     </div>
     <div v-if="!logs.length"><EmptyState icon="💰" text="暂无资金变动记录" /></div>
     <div v-else class="trade-log-list">
-      <van-swipe-cell v-for="log in logs" :key="log.id" :right-width="editable(log) ? 140 : 0">
+      <van-swipe-cell v-for="log in visibleLogs" :key="log.id" :right-width="editable(log) ? 140 : 0">
         <div class="trade-log-item" :class="{ 'is-expandable': hasItems(log) }" @click="toggle(log)">
           <div class="tli-body">
             <div class="tli-header">
@@ -42,6 +42,10 @@
         </template>
       </van-swipe-cell>
     </div>
+
+    <button v-if="foldLimit > 0 && logs.length > foldLimit" class="fold-toggle" @click="foldExpanded = !foldExpanded">
+      {{ foldExpanded ? '收起' : `展开全部（${logs.length}）` }}
+    </button>
 
     <teleport to="body">
       <div v-if="editing" class="overlay" @click.self="editing = null">
@@ -108,7 +112,9 @@ import EmptyState from '@/components/common/EmptyState.vue'
 const props = defineProps({
   logs: { type: Array, default: () => [] },
   title: { type: String, default: '资本流水' },
-  showRunning: { type: Boolean, default: false }
+  showRunning: { type: Boolean, default: false },
+  // 大于 0 时超出条数折叠，默认只显示前 foldLimit 条
+  foldLimit: { type: Number, default: 0 }
 })
 
 const fundStore = useFundStore()
@@ -119,6 +125,12 @@ const editDate = ref('')
 const deleting = ref(null)
 const error = ref('')
 const expandedIds = ref([])
+const foldExpanded = ref(false)
+
+const visibleLogs = computed(() => {
+  if (!props.foldLimit || foldExpanded.value || props.logs.length <= props.foldLimit) return props.logs
+  return props.logs.slice(0, props.foldLimit)
+})
 
 const round2 = n => Math.round((Number(n) + Number.EPSILON) * 100) / 100
 
@@ -273,6 +285,19 @@ async function doDelete() {
 .swipe-actions { display: flex; height: 100%; }
 .swipe-edit-btn { width: 70px; border: none; background: var(--bg-accent); color: #fff; font-size: 13px; font-weight: 500; cursor: pointer; }
 .swipe-del-btn { width: 70px; border: none; background: var(--color-fall); color: #fff; font-size: 13px; font-weight: 500; cursor: pointer; }
+
+.fold-toggle {
+  width: 100%;
+  margin-top: 8px;
+  padding: 8px 0;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
 
 .overlay { position: fixed; inset: 0; background: rgba(46,42,36,0.45); display: flex; align-items: center; justify-content: center; z-index: 9999; padding: 20px; }
 .dialog { background: var(--bg-card); border-radius: var(--radius-lg); padding: 20px; width: 100%; max-width: 360px; }

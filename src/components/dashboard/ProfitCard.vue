@@ -37,6 +37,7 @@ defineProps({
   gap: 8px;
 }
 .profit-item {
+  min-width: 0;
   padding: 8px 12px;
   border-radius: var(--radius-md);
 }

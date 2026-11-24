@@ -24,6 +24,7 @@ declare module 'vue' {
     PokerChart: typeof import('./components/asset/PokerChart.vue')['default']
     ProfitCard: typeof import('./components/dashboard/ProfitCard.vue')['default']
     RankingsPanel: typeof import('./components/trend/RankingsPanel.vue')['default']
+    RecentTrades: typeof import('./components/trade/RecentTrades.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     SellSheet: typeof import('./components/trade/SellSheet.vue')['default']

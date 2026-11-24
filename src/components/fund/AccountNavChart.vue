@@ -16,6 +16,11 @@
         <text :x="xOf(NAV_BASE_DATE)" :y="H - 6" text-anchor="middle" class="nav-base-label">7/19</text>
         <text v-for="t in yTicks" :key="'t' + t" :x="PAD.left - 6" :y="yOf(t) + 3" text-anchor="end" class="nav-tick">{{ t }}</text>
         <polyline v-for="s in series" :key="s.key" :points="pathOf(s)" fill="none" :stroke="s.color" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+        <!-- 起始点 = 同心圆（同 ETF 版）；末端 = 实心点 -->
+        <template v-for="s in series" :key="'st' + s.key">
+          <circle :cx="firstX(s)" :cy="firstY(s)" r="5" fill="none" :stroke="s.color" stroke-width="1.5" />
+          <circle :cx="firstX(s)" :cy="firstY(s)" r="2.6" :fill="s.color" stroke="var(--bg-card)" stroke-width="1.2" />
+        </template>
         <circle v-for="s in series" :key="'d' + s.key" :cx="lastX(s)" :cy="lastY(s)" r="2.6" :fill="s.color" />
       </svg>
       <div class="nav-axis">
@@ -120,6 +125,12 @@ function lastX(s) {
 }
 function lastY(s) {
   return yOf(s.points.at(-1).nav * 100)
+}
+function firstX(s) {
+  return xOf(s.points[0].date)
+}
+function firstY(s) {
+  return yOf(s.points[0].nav * 100)
 }
 
 const axisEnd = computed(() => {

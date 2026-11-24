@@ -27,7 +27,7 @@
         </div>
       </div>
 
-      <CapitalLogList :logs="adjustLogs" />
+      <CapitalLogList :logs="adjustLogs" :fold-limit="10" />
     </template>
 
     <CapitalDetailDialog v-model:show="showCapitalDetail" :logs="capitalLogs" />
