@@ -19,26 +19,26 @@ const routes = [
       {
         path: 'asset/overview',
         name: 'asset-overview',
-        component: () => import('@/pages/asset/AssetPlaceholderPage.vue'),
-        meta: { title: '资产概览', en: 'Assets Overview' }
+        component: () => import('@/pages/asset/AssetOverviewPage.vue'),
+        meta: { title: '概览' }
       },
       {
         path: 'asset/ledger',
         name: 'asset-ledger',
-        component: () => import('@/pages/asset/AssetPlaceholderPage.vue'),
-        meta: { title: '收支账本', en: 'Ledger' }
+        component: () => import('@/pages/asset/AssetLedgerPage.vue'),
+        meta: { title: '账本' }
       },
       {
         path: 'asset/stats',
         name: 'asset-stats',
-        component: () => import('@/pages/asset/AssetPlaceholderPage.vue'),
-        meta: { title: '统计报表', en: 'Statistics' }
+        component: () => import('@/pages/asset/AssetStatsPage.vue'),
+        meta: { title: '统计' }
       },
       {
         path: 'asset/poker',
         name: 'asset-poker',
-        component: () => import('@/pages/asset/AssetPlaceholderPage.vue'),
-        meta: { title: '德州战绩', en: 'Poker' }
+        component: () => import('@/pages/asset/AssetPokerPage.vue'),
+        meta: { title: '德州' }
       },
       // ===== 股票（Solo 版）=====
       {
