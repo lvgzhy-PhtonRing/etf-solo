@@ -3,6 +3,7 @@
     <div class="page-header">
       <span class="page-title">盈亏榜单<span class="title-en">Profit Ranking</span></span>
     </div>
+    <LoadErrorTip v-if="loadError" :message="loadError" @retry="retryLoad" />
 
     <LoadingSkeleton v-if="loading" :count="3" />
 
@@ -62,7 +63,7 @@
             <span class="rank-badge" :class="idx < 3 ? 'rank-badge--' + (idx + 1) : 'rank-badge--n'">{{ idx + 1 }}</span>
             <span class="rank-stock-name">
               {{ item.stock_name }}
-              <span class="rank-qty">{{ item.quantity }}股 · {{ item.profitPct >= 0 ? '+' : '' }}{{ item.profitPct.toFixed(1) }}%</span>
+              <span class="rank-qty">{{ item.quantity }}股 · {{ item.profitPct === null ? '—' : `${item.profitPct >= 0 ? '+' : ''}${item.profitPct.toFixed(1)}%` }}</span>
             </span>
             <span class="rank-profit" :class="item.profit >= 0 ? 'rise' : 'fall'">{{ formatProfit(item.profit) }}</span>
           </div>
@@ -117,12 +118,16 @@
 </template>
 
 <script setup>
+import LoadErrorTip from '@/components/common/LoadErrorTip.vue'
 import { ref, computed, onMounted } from 'vue'
 import { useHoldingStore } from '@/stores/holdings'
 import { usePriceStore } from '@/stores/prices'
 import { fetchAllTransactions } from '@/api/supabase'
 import { computeClearedRankings, computeHoldingProfits } from '@/utils/rankings'
 import { formatMoney } from '@/utils/formatters'
+const loadError = computed(() => holdingStore.error || priceStore.error || '')
+function retryLoad() { location.reload() }
+
 
 const loading = ref(true)
 

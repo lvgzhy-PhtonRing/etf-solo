@@ -66,7 +66,8 @@
 import { ref, computed, watch } from 'vue'
 import { formatMoney, formatPrice } from '@/utils/formatters'
 import { calcSellFee, calcSellActual } from '@/utils/feeCalculator'
-import { upsertHolding, deleteHolding, insertCapitalLog, fetchTransactionsByStock } from '@/api/supabase'
+import { validateSellOrder } from '@/utils/sellValidation'
+import { upsertHolding, deleteHolding, insertCapitalLog, fetchTransactionsByStock, deleteCapitalLog, deleteTransaction } from '@/api/supabase'
 import { useTransactionStore } from '@/stores/transactions'
 import { useHoldingStore } from '@/stores/holdings'
 import { useFundStore } from '@/stores/funds'
@@ -104,12 +105,27 @@ const sellFee = computed(() => {
   const amt = sellQty.value * sellPrice.value
   return amt > 0 ? calcSellFee(amt) : 0
 })
-const sellValid = computed(() => sellQty.value > 0 && sellQty.value <= sellHoldingQty.value && sellQty.value % 100 === 0)
+const sellValid = computed(() => validateSellOrder({
+  price: sellPrice.value,
+  qty: sellQty.value,
+  holdingQty: sellHoldingQty.value,
+  fee: sellFee.value
+}).ok)
 
 async function submitSell() {
   formError.value = ''
-  if (!sellValid.value) return
+  const check = validateSellOrder({
+    price: sellPrice.value,
+    qty: sellQty.value,
+    holdingQty: sellHoldingQty.value,
+    fee: sellFee.value
+  })
+  if (!check.ok) { formError.value = check.error; return }
   submitting.value = true
+  const existing = holdingStore.holdings.find(h => h.stock_code === stockCode.value)
+  let createdTx = null
+  let holdingChanged = false
+  let capLog = null
   try {
     const amount = Math.round(sellQty.value * sellPrice.value * 100) / 100
     const { fee, actualAmount } = calcSellActual(amount)
@@ -125,8 +141,7 @@ async function submitSell() {
       note: `卖出 ${stockCode.value}`,
       created_by: 'solo'
     }
-    await txStore.addTransaction(tx)
-    const existing = holdingStore.holdings.find(h => h.stock_code === stockCode.value)
+    createdTx = await txStore.addTransaction(tx)
     const remaining = (existing?.quantity || 0) - sellQty.value
     if (remaining <= 0) {
       await deleteHolding(stockCode.value)
@@ -143,13 +158,40 @@ async function submitSell() {
         cost_price: Math.max(newCost, 0)
       })
     }
-    await insertCapitalLog({ type: 'add', amount: actualAmount, note: `卖出 ${stockCode.value}`, category: 'trade', created_by: 'solo' })
+    holdingChanged = true
+    capLog = await insertCapitalLog({
+      type: 'add',
+      amount: actualAmount,
+      note: `卖出 ${stockCode.value}`,
+      category: 'trade',
+      created_by: 'solo',
+      source_tx_id: createdTx?.id ?? null
+    })
     await Promise.all([holdingStore.loadHoldings(), fundStore.loadCapitalLogs()])
     sellQty.value = 0; sellPrice.value = 0; formError.value = ''
     visible.value = false
     emit('changed')
   } catch (e) {
     console.error('Sell error:', e)
+    try {
+      if (capLog?.id) await deleteCapitalLog(capLog.id)
+      if (holdingChanged) {
+        if (existing) {
+          await upsertHolding({
+            stock_code: existing.stock_code,
+            stock_name: existing.stock_name,
+            quantity: existing.quantity,
+            cost_price: existing.cost_price
+          })
+        } else {
+          await deleteHolding(stockCode.value)
+        }
+      }
+      if (createdTx?.id) await deleteTransaction(createdTx.id)
+      await Promise.all([holdingStore.loadHoldings(), fundStore.loadCapitalLogs()])
+    } catch (rollbackErr) {
+      console.error('Sell rollback error:', rollbackErr)
+    }
     formError.value = '提交失败：' + e.message
   } finally {
     submitting.value = false

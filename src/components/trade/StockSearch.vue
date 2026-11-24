@@ -197,9 +197,9 @@ async function search() {
   max-height: 220px;
   overflow-y: auto;
   background: var(--bg-solid);
-  border: 1px solid rgba(255,255,255,0.08);
+  border: 1px solid var(--border-soft);
   border-radius: 0 0 var(--radius-md) var(--radius-md);
-  box-shadow: 0 6px 16px rgba(0,0,0,0.4);
+  box-shadow: var(--shadow-card);
   z-index: 200;
 }
 .sugg-status {
@@ -219,12 +219,12 @@ async function search() {
   align-items: center;
   gap: 8px;
   padding: 10px 12px;
-  border-bottom: 1px solid rgba(255,255,255,0.03);
+  border-bottom: 1px solid var(--border-soft);
   cursor: pointer;
   transition: background 0.1s;
 }
 .suggestion-item:active {
-  background: rgba(255,255,255,0.06);
+  background: var(--bg-hover);
 }
 .sugg-name {
   flex: 1;

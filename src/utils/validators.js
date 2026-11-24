@@ -19,10 +19,6 @@ export function isValidAmount(amount) {
   return !isNaN(n) && n > 0
 }
 
-export function isValidPassword(pwd) {
-  return /^\d{4}$/.test(pwd)
-}
-
 export function sumEquals(arr, target) {
   const total = arr.reduce((s, v) => s + (parseFloat(v) || 0), 0)
   return Math.abs(total - target) < 0.01

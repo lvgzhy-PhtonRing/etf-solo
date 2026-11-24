@@ -37,7 +37,7 @@
         <div class="group-title">关于</div>
         <div class="settings-item">
           <div class="item-left"><span class="item-icon">ℹ️</span><span>版本</span></div>
-          <span class="item-value">v1.0.0</span>
+          <span class="item-value">v1.0.1</span>
         </div>
         <div class="settings-item">
           <div class="item-left"><span class="item-icon">🏛️</span><span>数据存储</span></div>
@@ -82,6 +82,7 @@
 <script setup>
 import { ref } from 'vue'
 import { supabase } from '@/api/supabase'
+import { validateImportData, TABLE_KEYS } from '@/utils/importValidation'
 
 defineProps({
   inDrawer: { type: Boolean, default: false }
@@ -97,7 +98,7 @@ const backups = ref([])
 const restoring = ref(null)
 let pendingImportData = null
 
-const TABLES = ['solo_holdings', 'solo_transactions', 'solo_capital_log', 'solo_stock_cache', 'solo_app_config']
+const TABLES = TABLE_KEYS
 
 // ========== 导出 ==========
 async function exportData() {
@@ -237,37 +238,72 @@ async function exportThenConfirm() {
   }
 }
 
-function rowsOf(table) {
-  const rows = pendingImportData[table] || pendingImportData[table.replace('solo_', '')] || []
+function rowsOf(rows) {
   return rows.map(({ id, ...clean }) => clean)
+}
+
+async function snapshotTables() {
+  const backup = {}
+  for (const table of TABLE_KEYS) {
+    const { data, error } = await supabase.from(table).select('*')
+    if (error) throw new Error(`${table} 读取失败：${error.message}`)
+    backup[table] = data || []
+  }
+  return backup
+}
+
+async function replaceAll(rows, { stripSource = false } = {}) {
+  const deleteOrder = [
+    ['solo_capital_log', 'id', 0],
+    ['solo_transactions', 'id', 0],
+    ['solo_holdings', 'id', 0],
+    ['solo_stock_cache', 'stock_code', ''],
+    ['solo_app_config', 'key', '']
+  ]
+  for (const [table, keyField, emptyVal] of deleteOrder) {
+    const { error } = await supabase.from(table).delete().neq(keyField, emptyVal)
+    if (error) throw new Error(`${table} 清空失败：${error.message}`)
+  }
+  for (const table of TABLE_KEYS) {
+    const list = rowsOf(rows[table] || []).map(row => {
+      if (!stripSource) return row
+      const { source_tx_id, ...rest } = row
+      return rest
+    })
+    if (list.length) {
+      const { error } = await supabase.from(table).insert(list)
+      if (error) throw new Error(`${table} 插入失败：${error.message}`)
+    }
+  }
 }
 
 async function doImport() {
   if (!pendingImportData) return
+  const check = validateImportData(pendingImportData)
+  if (!check.ok) {
+    alert('❌ 文件校验未通过，未改动任何数据：' + check.error)
+    pendingImportData = null
+    showImportConfirm.value = false
+    return
+  }
+  let backup = null
   try {
-    // 清空顺序：先流水/交易，后持仓与缓存
-    const deleteOrder = [
-      ['solo_capital_log', 'id', 0],
-      ['solo_transactions', 'id', 0],
-      ['solo_holdings', 'id', 0],
-      ['solo_stock_cache', 'stock_code', ''],
-      ['solo_app_config', 'key', '']
-    ]
-    for (const [table, keyField, emptyVal] of deleteOrder) {
-      const { error } = await supabase.from(table).delete().neq(keyField, emptyVal)
-      if (error) throw new Error(`${table} 清空失败：${error.message}`)
-    }
-    for (const table of ['solo_holdings', 'solo_transactions', 'solo_capital_log', 'solo_stock_cache', 'solo_app_config']) {
-      const rows = rowsOf(table)
-      if (rows.length) {
-        const { error } = await supabase.from(table).insert(rows)
-        if (error) throw new Error(`${table} 插入失败：${error.message}`)
-      }
-    }
+    backup = await snapshotTables()
+    await replaceAll(check.rows)
     alert('✅ 数据导入成功！请刷新页面查看')
   } catch (e) {
     console.error('Import error:', e)
-    alert('❌ 导入失败：' + e.message)
+    if (backup) {
+      try {
+        await replaceAll(backup, { stripSource: true })
+        alert('❌ 导入失败，已恢复导入前数据：' + e.message)
+      } catch (restoreErr) {
+        console.error('Restore error:', restoreErr)
+        alert('❌ 导入失败且自动恢复失败，请用刚才导出的备份文件恢复：' + restoreErr.message)
+      }
+    } else {
+      alert('❌ 导入失败：' + e.message)
+    }
   } finally {
     pendingImportData = null
     showImportConfirm.value = false

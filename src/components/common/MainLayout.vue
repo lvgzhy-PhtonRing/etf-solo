@@ -39,7 +39,7 @@
       closeable
       close-icon="cross"
       close-icon-position="top-left"
-      :close-icon-color="'#a7a3c8'"
+      :close-icon-color="'var(--text-muted)'"
     >
       <SettingsPage :in-drawer="true" @close="showDrawer = false" />
     </van-popup>

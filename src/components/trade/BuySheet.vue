@@ -44,7 +44,7 @@ import { ref, computed, watch } from 'vue'
 import { formatMoney, formatPrice } from '@/utils/formatters'
 import { calcBuyActual } from '@/utils/feeCalculator'
 import { calcNewCostPrice } from '@/utils/calculators'
-import { insertCapitalLog, upsertHolding } from '@/api/supabase'
+import { insertCapitalLog, upsertHolding, deleteCapitalLog, deleteTransaction, deleteHolding } from '@/api/supabase'
 import { useTransactionStore } from '@/stores/transactions'
 import { useHoldingStore } from '@/stores/holdings'
 import { useFundStore } from '@/stores/funds'
@@ -85,6 +85,10 @@ async function onBuySubmit(data) {
     return
   }
   submitting.value = true
+  const existing = holdingStore.holdings.find(h => h.stock_code === stockCode.value)
+  let createdTx = null
+  let holdingChanged = false
+  let capLog = null
   try {
     const tx = {
       stock_code: stockCode.value,
@@ -98,8 +102,7 @@ async function onBuySubmit(data) {
       note: data.note || `买入 ${stockCode.value}`,
       created_by: 'solo'
     }
-    await txStore.addTransaction(tx)
-    const existing = holdingStore.holdings.find(h => h.stock_code === stockCode.value)
+    createdTx = await txStore.addTransaction(tx)
     const newCost = calcNewCostPrice(actualAmount, qty, existing?.quantity || 0, existing?.cost_price || 0)
     await upsertHolding({
       stock_code: stockCode.value,
@@ -107,12 +110,40 @@ async function onBuySubmit(data) {
       quantity: (existing?.quantity || 0) + qty,
       cost_price: newCost
     })
-    await insertCapitalLog({ type: 'remove', amount: actualAmount, note: `买入 ${stockCode.value}`, category: 'trade', created_by: 'solo' })
+    holdingChanged = true
+    capLog = await insertCapitalLog({
+      type: 'remove',
+      amount: actualAmount,
+      note: `买入 ${stockCode.value}`,
+      category: 'trade',
+      created_by: 'solo',
+      source_tx_id: createdTx?.id ?? null
+    })
     await Promise.all([holdingStore.loadHoldings(), fundStore.loadCapitalLogs()])
     stockCode.value = ''; stockName.value = ''; currentPrice.value = 0; formError.value = ''; step.value = 'search'; visible.value = false
     emit('changed')
   } catch (e) {
     console.error('Buy error:', e)
+    // 补偿回滚：流水 → 持仓 → 交易
+    try {
+      if (capLog?.id) await deleteCapitalLog(capLog.id)
+      if (holdingChanged) {
+        if (existing) {
+          await upsertHolding({
+            stock_code: existing.stock_code,
+            stock_name: existing.stock_name,
+            quantity: existing.quantity,
+            cost_price: existing.cost_price
+          })
+        } else {
+          await deleteHolding(stockCode.value)
+        }
+      }
+      if (createdTx?.id) await deleteTransaction(createdTx.id)
+      await Promise.all([holdingStore.loadHoldings(), fundStore.loadCapitalLogs()])
+    } catch (rollbackErr) {
+      console.error('Buy rollback error:', rollbackErr)
+    }
     formError.value = '提交失败：' + e.message
   } finally {
     submitting.value = false

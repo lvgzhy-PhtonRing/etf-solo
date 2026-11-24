@@ -15,6 +15,7 @@ declare module 'vue' {
     EmptyState: typeof import('./components/common/EmptyState.vue')['default']
     HoldingCard: typeof import('./components/dashboard/HoldingCard.vue')['default']
     KLineOverlay: typeof import('./components/kline/KLineOverlay.vue')['default']
+    LoadErrorTip: typeof import('./components/common/LoadErrorTip.vue')['default']
     LoadingSkeleton: typeof import('./components/common/LoadingSkeleton.vue')['default']
     MainLayout: typeof import('./components/common/MainLayout.vue')['default']
     NavOverview: typeof import('./components/fund/NavOverview.vue')['default']

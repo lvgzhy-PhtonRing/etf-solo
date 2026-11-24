@@ -42,7 +42,7 @@ async function prepareHistoricalSnapshots() {
   const firstDate = [
     originals[0]?.date,
     ...ledger.capitalLogs.map(log => marketDate(log.created_at || '')),
-    ...ledger.transactions.filter(tx => tx.status === 'verified').map(tx => tx.trade_date)
+    ...ledger.transactions.map(tx => tx.trade_date)
   ].filter(Boolean).sort()[0]
   const tradingDates = [...new Set(marketBars.map(bar => marketDate(bar.timestamp)))].filter(Boolean).sort()
   const eligible = date => firstDate && date >= firstDate && date < today

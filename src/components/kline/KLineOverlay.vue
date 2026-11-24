@@ -402,7 +402,7 @@ async function createTradeMarks(bars) {
 
   const txs = await fetchAllTransactions()
   if (!chart) return
-  const mine = txs.filter(t => t.stock_code === props.stock.stock_code && t.status === 'verified' && t.trade_date)
+  const mine = txs.filter(t => t.stock_code === props.stock.stock_code && t.trade_date)
   if (!mine.length) return
 
   const byBar = new Map()
@@ -488,7 +488,7 @@ onBeforeUnmount(() => {
   background: rgba(255, 255, 255, 0.08);
   border: none;
   border-radius: 8px;
-  color: var(--text-primary);
+  color: #f4f2ff;
   cursor: pointer;
   flex-shrink: 0;
 }
@@ -508,12 +508,12 @@ onBeforeUnmount(() => {
 .kline-name {
   font-size: 15px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: #f4f2ff;
 }
 
 .kline-code {
   font-size: 12px;
-  color: var(--text-secondary);
+  color: #a7a3c8;
   font-family: var(--font-number);
 }
 

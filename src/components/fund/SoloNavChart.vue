@@ -25,6 +25,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { fetchPositionSnapshots } from '@/api/supabase'
 import { useFundStore } from '@/stores/funds'
+import { marketDate } from '@/utils/historicalSnapshotLedger'
 
 const W = 420
 const H = 200
@@ -36,7 +37,7 @@ const fundStore = useFundStore()
 // 某日累计外部投入（category=capital）
 function investedAt(date) {
   return fundStore.capitalLogs
-    .filter(l => l.category === 'capital' && l.created_at && l.created_at.slice(0, 10) <= date)
+    .filter(l => l.category === 'capital' && l.created_at && marketDate(l.created_at) <= date)
     .reduce((s, l) => s + (l.type === 'add' ? l.amount : -l.amount), 0)
 }
 

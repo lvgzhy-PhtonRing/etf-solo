@@ -4,7 +4,7 @@
  * 计算盈亏 = (现价 - 成本价) × 持仓数量
  */
 export function calcProfit(currentPrice, costPrice, quantity) {
-  if (!currentPrice || !costPrice || !quantity) return 0
+  if (!currentPrice || !quantity || costPrice == null) return 0
   return (currentPrice - costPrice) * quantity
 }
 

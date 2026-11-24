@@ -16,6 +16,8 @@ export function computeClearedRankings(transactions) {
         sellQty: 0,
         buyAmount: 0,
         sellAmount: 0,
+        buyFees: 0,
+        sellFees: 0,
         buyDates: [],
         sellDates: [],
         txs: []
@@ -26,26 +28,33 @@ export function computeClearedRankings(transactions) {
     if (tx.type === 'buy') {
       entry.buyQty += tx.quantity
       entry.buyAmount += tx.amount
+      entry.buyFees += tx.fee || 0
       if (tx.trade_date) entry.buyDates.push(tx.trade_date)
     } else {
       entry.sellQty += tx.quantity
       entry.sellAmount += tx.amount
+      entry.sellFees += tx.fee || 0
       if (tx.trade_date) entry.sellDates.push(tx.trade_date)
     }
   }
 
   return Object.values(byStock)
     .filter(s => s.buyQty > 0 && s.buyQty === s.sellQty)
-    .map(s => ({
-      ...s,
-      profit: s.sellAmount - s.buyAmount,
-      profitPct: s.buyAmount > 0 ? ((s.sellAmount - s.buyAmount) / s.buyAmount) * 100 : 0,
-      buyAvgPrice: s.buyQty > 0 ? s.buyAmount / s.buyQty : 0,
-      sellAvgPrice: s.sellQty > 0 ? s.sellAmount / s.sellQty : 0,
-      buyRange: dateRange(s.buyDates),
-      sellRange: dateRange(s.sellDates),
-      cycleCount: s.txs.length
-    }))
+    .map(s => {
+      const netSell = s.sellAmount - s.sellFees
+      const totalBuy = s.buyAmount + s.buyFees
+      const profit = netSell - totalBuy
+      return {
+        ...s,
+        profit,
+        profitPct: totalBuy > 0 ? (profit / totalBuy) * 100 : 0,
+        buyAvgPrice: s.buyQty > 0 ? totalBuy / s.buyQty : 0,
+        sellAvgPrice: s.sellQty > 0 ? netSell / s.sellQty : 0,
+        buyRange: dateRange(s.buyDates),
+        sellRange: dateRange(s.sellDates),
+        cycleCount: s.txs.length
+      }
+    })
     .sort((a, b) => b.profit - a.profit)
 }
 
@@ -71,7 +80,7 @@ export function computeHoldingProfits(holdings, prices = {}) {
         price,
         marketValue,
         profit,
-        profitPct: cost > 0 ? (profit / cost) * 100 : 0
+        profitPct: cost > 0 ? (profit / cost) * 100 : null
       }
     })
     .sort((a, b) => b.profit - a.profit)

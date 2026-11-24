@@ -4,6 +4,7 @@
     <div class="page-header">
       <span class="page-title">持仓总览<span class="title-en">Holdings Overview</span></span>
     </div>
+    <LoadErrorTip v-if="loadError" :message="loadError" @retry="retryLoad" />
 
     <!-- 账户总资产模块 -->
     <div class="section-card account-hero edge-accent">
@@ -73,6 +74,7 @@
 </template>
 
 <script setup>
+import LoadErrorTip from '@/components/common/LoadErrorTip.vue'
 import { ref, computed, onMounted } from 'vue'
 import { useHoldingStore } from '@/stores/holdings'
 import { usePriceStore } from '@/stores/prices'
@@ -86,6 +88,9 @@ import KLineOverlay from '@/components/kline/KLineOverlay.vue'
 import BuySheet from '@/components/trade/BuySheet.vue'
 import SellSheet from '@/components/trade/SellSheet.vue'
 import TradeRecordsSheet from '@/components/trade/TradeRecordsSheet.vue'
+const loadError = computed(() => holdingStore.error || fundStore.error || priceStore.error || '')
+function retryLoad() { location.reload() }
+
 
 const holdingStore = useHoldingStore()
 const priceStore = usePriceStore()

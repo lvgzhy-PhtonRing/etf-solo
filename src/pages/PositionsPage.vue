@@ -3,6 +3,7 @@
     <div class="page-header">
       <span class="page-title">仓位分析<span class="title-en">Position Analysis</span></span>
     </div>
+    <LoadErrorTip v-if="loadError" :message="loadError" @retry="retryLoad" />
 
     <LoadingSkeleton v-if="loading" :count="2" />
 
@@ -73,12 +74,16 @@
 </template>
 
 <script setup>
+import LoadErrorTip from '@/components/common/LoadErrorTip.vue'
 import { ref, computed, onMounted } from 'vue'
 import { useHoldingStore } from '@/stores/holdings'
 import { usePriceStore } from '@/stores/prices'
 import { formatMoney } from '@/utils/formatters'
 import { useFundStore } from '@/stores/funds'
 import DonutChart from '@/components/positions/DonutChart.vue'
+const loadError = computed(() => holdingStore.error || fundStore.error || priceStore.error || '')
+function retryLoad() { location.reload() }
+
 
 const holdingStore = useHoldingStore()
 const priceStore = usePriceStore()

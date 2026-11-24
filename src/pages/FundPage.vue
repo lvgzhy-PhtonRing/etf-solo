@@ -3,6 +3,7 @@
     <div class="page-header">
       <span class="page-title">资本管理<span class="title-en">Capital Management</span></span>
     </div>
+    <LoadErrorTip v-if="loadError" :message="loadError" @retry="retryLoad" />
 
     <CapitalSummary
       :total-capital="totalCapital"
@@ -31,14 +32,19 @@
 </template>
 
 <script setup>
+import LoadErrorTip from '@/components/common/LoadErrorTip.vue'
 import { ref, computed, onMounted } from 'vue'
 import { useFundStore } from '@/stores/funds'
 import { useHoldingStore } from '@/stores/holdings'
 import { usePriceStore } from '@/stores/prices'
 import { formatMoney } from '@/utils/formatters'
+import { ADJUST_LABELS, parseAdjustNote } from '@/utils/adjustItems'
 import CapitalSummary from '@/components/fund/CapitalSummary.vue'
 import CapitalLogList from '@/components/fund/CapitalLogList.vue'
 import LoadingSkeleton from '@/components/common/LoadingSkeleton.vue'
+const loadError = computed(() => holdingStore.error || fundStore.error || priceStore.error || '')
+function retryLoad() { location.reload() }
+
 
 const fundStore = useFundStore()
 const holdingStore = useHoldingStore()
@@ -56,14 +62,6 @@ const totalMarketValue = computed(() => {
   }, 0)
 })
 const totalAsset = computed(() => totalMarketValue.value + totalAvailable.value)
-
-const ADJUST_LABELS = {
-  stock_dividend: '红利',
-  interest: '利息',
-  reverse_repo: '逆回购',
-  dividend_tax: '红利税',
-  fee_error: '费用误差'
-}
 
 const categories = computed(() => {
   const sums = {
@@ -85,7 +83,7 @@ const categories = computed(() => {
     } else if (l.category === 'trade') {
       sums.tradeNet += signed
     } else if (l.category === 'adjust') {
-      const data = parseAdjust(l.note)
+      const data = parseAdjustNote(l.note)
       if (data?.items?.length) {
         for (const it of data.items) {
           const amt = (it.signedAmount || 0) / 100
@@ -107,10 +105,7 @@ const categories = computed(() => {
 })
 
 function parseAdjust(note) {
-  if (!note) return null
-  const m = note.match(/\[校对分项\](\{[\s\S]*\})/)
-  if (!m) return null
-  try { return JSON.parse(m[1]) } catch { return null }
+  return parseAdjustNote(note)
 }
 
 function formatSigned(v) {

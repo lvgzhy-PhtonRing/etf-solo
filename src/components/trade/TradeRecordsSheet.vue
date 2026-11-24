@@ -176,6 +176,7 @@ import {
   updateCapitalLog, deleteCapitalLog, updateTransaction, deleteTransaction,
   fetchTransactionsByStock, deleteHolding, upsertHolding
 } from '@/api/supabase'
+import { findTradeLog } from '@/utils/tradeCapLink'
 import { matchTradedStocks } from '@/api/stock'
 import { useTransactionStore } from '@/stores/transactions'
 import { useHoldingStore } from '@/stores/holdings'
@@ -285,19 +286,8 @@ const editFee = ref(0)
 const editComputedAmount = ref(0)
 const editComputedActual = ref(0)
 
-function actualAmountOf(tx) {
-  const amt = tx.amount || 0
-  const fee = tx.fee || 0
-  return tx.type === 'sell' ? amt - fee : amt + fee
-}
-
 function matchedCapLog(tx) {
-  const target = actualAmountOf(tx)
-  return fundStore.capitalLogs.find(l =>
-    l.category === 'trade' &&
-    l.note === (tx.note || '') &&
-    Math.abs(l.amount - target) < 0.01
-  )
+  return findTradeLog(fundStore.capitalLogs, tx)
 }
 
 function onEditPriceOrQtyChange() {
@@ -344,14 +334,14 @@ async function saveEditTrade() {
   const fee = isSell ? calcSellFee(amount) : calcBuyFee(amount)
   const actualAmount = isSell ? parseFloat((amount - fee).toFixed(2)) : parseFloat((amount + fee).toFixed(2))
   try {
-    const txUpdates = { quantity: newQty, amount, price, fee }
+    const txUpdates = { quantity: newQty, amount, price, fee, note: editNote.value || log.note || '' }
     if (editDate.value) txUpdates.trade_date = editDate.value
     await updateTransaction(log.id, txUpdates)
     txStore.transactions = txStore.transactions.map(t => t.id === log.id ? { ...t, ...txUpdates } : t)
 
     const cap = matchedCapLog(log)
     if (cap) {
-      await updateCapitalLog(cap.id, { amount: actualAmount, note: editNote.value || log.note || '' })
+      await updateCapitalLog(cap.id, { amount: actualAmount })
     }
     await recalcHolding(log.stock_code, log.stock_name)
     await Promise.all([fundStore.loadCapitalLogs(), holdingStore.loadHoldings(), txStore.loadTransactions()])

@@ -47,6 +47,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { formatMoney } from '@/utils/formatters'
 import { fetchPositionSnapshots } from '@/api/supabase'
+import { marketDate } from '@/utils/historicalSnapshotLedger'
 import { useHoldingStore } from '@/stores/holdings'
 import { usePriceStore } from '@/stores/prices'
 import { useFundStore } from '@/stores/funds'
@@ -66,21 +67,32 @@ const fundStore = useFundStore()
 const latest = computed(() =>
   snapshots.value.length ? snapshots.value[snapshots.value.length - 1] : null)
 
-// 当前总资产 = 持仓市值 + 可用资金；行情未加载时回退最新快照
+// 当前总资产：无持仓=纯现金；有持仓且行情齐全=市值+现金；缺行情回退最新快照
 const currentAsset = computed(() => {
-  const mv = holdingStore.holdings.reduce((s, h) => {
-    return s + (priceStore.prices[h.stock_code]?.price || 0) * h.quantity
-  }, 0)
-  if (mv > 0) return mv + fundStore.totalAvailable
-  return latest.value ? latest.value.asset : 0
+  const holdings = holdingStore.holdings
+  if (!holdings.length) return fundStore.totalAvailable
+  const pricesReady = holdings.every(h => priceStore.prices[h.stock_code]?.price > 0)
+  if (!pricesReady) return latest.value ? latest.value.asset : fundStore.totalAvailable
+  const mv = holdings.reduce((s, h) => s + priceStore.prices[h.stock_code].price * h.quantity, 0)
+  return mv + fundStore.totalAvailable
+})
+
+// 某日为止的累计外部投入（category=capital）
+function investedAt(date) {
+  return fundStore.capitalLogs
+    .filter(l => l.category === 'capital' && marketDate(l.created_at || '') <= date)
+    .reduce((s, l) => s + (l.type === 'add' ? l.amount : -l.amount), 0)
+}
+
+// 当日单位净值 = 总资产 / 累计投入
+const currentNav = computed(() => {
+  const inv = investedAt(marketDate())
+  return inv > 0 && currentAsset.value > 0 ? currentAsset.value / inv : null
 })
 
 const navDate = computed(() => (latest.value ? latest.value.date : '—'))
 
-// 单位净值 = 当前总资产 / 累计外部投入（含初始）
-const navText = computed(() => (fundStore.totalCapital > 0
-  ? (currentAsset.value / fundStore.totalCapital).toFixed(4)
-  : '—'))
+const navText = computed(() => (currentNav.value === null ? '—' : currentNav.value.toFixed(4)))
 
 const inceptionText = computed(() => {
   if (!snapshots.value.length) return '—'
@@ -129,12 +141,16 @@ function assetOnOrBefore(dateStr) {
 
 const periodReturns = computed(() => {
   const last = latest.value
-  const asset = currentAsset.value || (last ? last.asset : 0)
+  const navNow = currentNav.value
+  if (!last || navNow === null) return PERIODS.map(it => ({ ...it, value: null }))
   return PERIODS.map(it => {
-    if (!last || !asset) return { ...it, value: null }
     const target = shiftMonths(last.date, it.months)
     const past = assetOnOrBefore(target)
-    return { ...it, value: past ? (asset / past - 1) * 100 : null }
+    if (!past) return { ...it, value: null }
+    const inv = investedAt(past.date)
+    if (!(inv > 0)) return { ...it, value: null }
+    const pastNav = past.asset / inv
+    return { ...it, value: (navNow / pastNav - 1) * 100 }
   })
 })
 

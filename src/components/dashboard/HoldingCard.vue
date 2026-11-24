@@ -7,8 +7,8 @@
           <span class="stock-name">{{ stock.stock_name }}</span>
           <span class="stock-code">{{ stock.stock_code }}</span>
         </div>
-        <span class="stock-change" :class="costReturn >= 0 ? 'rise' : 'fall'">
-          {{ costReturn >= 0 ? '+' : '' }}{{ costReturn.toFixed(2) }}%
+        <span class="stock-change" :class="costReturn === null ? '' : (costReturn >= 0 ? 'rise' : 'fall')">
+          {{ costReturn === null ? '—' : `${costReturn >= 0 ? '+' : ''}${costReturn.toFixed(2)}%` }}
         </span>
       </div>
       <div class="holding-details">
@@ -33,8 +33,8 @@
       </div>
       <div class="holding-footer">
         <span class="market-value">市值 {{ formatMoney(stock.marketValue) }}</span>
-        <span class="profit-pct" :class="costReturn >= 0 ? 'rise' : 'fall'">
-          收益率 {{ costReturn >= 0 ? '+' : '' }}{{ costReturn.toFixed(2) }}%
+        <span class="profit-pct" :class="costReturn === null ? '' : (costReturn >= 0 ? 'rise' : 'fall')">
+          收益率 {{ costReturn === null ? '—（成本已收回）' : `${costReturn >= 0 ? '+' : ''}${costReturn.toFixed(2)}%` }}
         </span>
       </div>
     </div>
@@ -59,7 +59,7 @@ defineEmits(['sell', 'tap'])
 const costReturn = computed(() => {
   const cp = parseFloat(props.stock.cost_price) || 0
   const np = parseFloat(props.stock.currentPrice) || 0
-  return cp > 0 ? ((np - cp) / cp) * 100 : 0
+  return cp > 0 ? ((np - cp) / cp) * 100 : null
 })
 </script>
 

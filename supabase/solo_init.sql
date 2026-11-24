@@ -38,13 +38,14 @@ CREATE INDEX IF NOT EXISTS idx_solo_transactions_date ON solo_transactions(trade
 -- 3. 资金流水
 --    category: capital=外部入金/出金/初始，trade=买卖现金流，adjust=红利/利息/逆回购/税费
 CREATE TABLE IF NOT EXISTS solo_capital_log (
-  id          INT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
-  type        VARCHAR(10) NOT NULL CHECK (type IN ('add', 'remove')),
-  amount      DECIMAL(15,2) NOT NULL,
-  note        TEXT,
-  category    VARCHAR(10) NOT NULL DEFAULT 'capital' CHECK (category IN ('capital', 'trade', 'adjust')),
-  created_by  VARCHAR(20) NOT NULL DEFAULT 'solo',
-  created_at  TIMESTAMPTZ DEFAULT NOW()
+  id            INT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+  type          VARCHAR(10) NOT NULL CHECK (type IN ('add', 'remove')),
+  amount        DECIMAL(15,2) NOT NULL,
+  note          TEXT,
+  category      VARCHAR(10) NOT NULL DEFAULT 'capital' CHECK (category IN ('capital', 'trade', 'adjust')),
+  created_by    VARCHAR(20) NOT NULL DEFAULT 'solo',
+  created_at    TIMESTAMPTZ DEFAULT NOW(),
+  source_tx_id  INT
 );
 CREATE INDEX IF NOT EXISTS idx_solo_capital_log_created ON solo_capital_log(created_at);
 
@@ -71,6 +72,12 @@ ALTER TABLE solo_transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE solo_capital_log  ENABLE ROW LEVEL SECURITY;
 ALTER TABLE solo_stock_cache  ENABLE ROW LEVEL SECURITY;
 ALTER TABLE solo_app_config   ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "solo_holdings_all"     ON solo_holdings;
+DROP POLICY IF EXISTS "solo_transactions_all" ON solo_transactions;
+DROP POLICY IF EXISTS "solo_capital_log_all"  ON solo_capital_log;
+DROP POLICY IF EXISTS "solo_stock_cache_all"  ON solo_stock_cache;
+DROP POLICY IF EXISTS "solo_app_config_all"   ON solo_app_config;
 
 CREATE POLICY "solo_holdings_all"     ON solo_holdings     FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
 CREATE POLICY "solo_transactions_all" ON solo_transactions FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);

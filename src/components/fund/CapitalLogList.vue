@@ -26,17 +26,10 @@
 
 <script setup>
 import { formatMoney } from '@/utils/formatters'
+import { ADJUST_LABELS, parseAdjustNote } from '@/utils/adjustItems'
 import EmptyState from '@/components/common/EmptyState.vue'
 
 defineProps({ logs: { type: Array, default: () => [] } })
-
-const ADJUST_LABELS = {
-  stock_dividend: '红利',
-  interest: '利息',
-  reverse_repo: '逆回购',
-  dividend_tax: '红利税',
-  fee_error: '费用误差'
-}
 
 function labelOf(log) {
   if (log.category === 'trade') return log.type === 'add' ? '卖出' : '买入'
@@ -44,16 +37,9 @@ function labelOf(log) {
   return log.type === 'add' ? '增资' : '减资'
 }
 
-function parseAdjust(note) {
-  if (!note) return null
-  const m = note.match(/\[校对分项\](\{[\s\S]*\})/)
-  if (!m) return null
-  try { return JSON.parse(m[1]) } catch { return null }
-}
-
 function noteText(log) {
   if (log.category === 'adjust') {
-    const data = parseAdjust(log.note)
+    const data = parseAdjustNote(log.note)
     if (data?.items?.length) {
       return data.items
         .map(it => `${ADJUST_LABELS[it.category] || it.category}${it.stockName ? '(' + it.stockName + ')' : ''} ${(it.signedAmount / 100).toFixed(2)}`)

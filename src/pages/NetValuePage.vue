@@ -3,6 +3,7 @@
     <div class="page-header">
       <span class="page-title">净值走势<span class="title-en">NAV Trend</span></span>
     </div>
+    <LoadErrorTip v-if="loadError" :message="loadError" @retry="retryLoad" />
 
     <div class="section-card nav-hero">
       <NavOverview />
@@ -15,8 +16,15 @@
 </template>
 
 <script setup>
+import LoadErrorTip from '@/components/common/LoadErrorTip.vue'
 import NavOverview from '@/components/fund/NavOverview.vue'
 import SoloNavChart from '@/components/fund/SoloNavChart.vue'
+import { useFundStore } from '@/stores/funds'
+
+const fundStore = useFundStore()
+const loadError = computed(() => fundStore.error || '')
+function retryLoad() { location.reload() }
+
 </script>
 
 <style scoped>

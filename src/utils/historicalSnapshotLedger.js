@@ -19,11 +19,17 @@ function collectFlows(transactions, capitalLogs) {
   const cashByDate = new Map()
   const capitalByDate = new Map()
   const tradesByDate = new Map()
+  const tradeLogs = []
 
   for (const log of capitalLogs) {
     const date = marketDate(log.created_at || '')
     if (!date || !['add', 'remove'].includes(log.type)) throw new Error('资金流水日期或类型无效')
     const amount = cents(log.amount) * (log.type === 'add' ? 1 : -1)
+    if (log.category === 'trade') {
+      const code = (log.note || '').match(/(?:买入|卖出)\s+(\d{6})/)?.[1] || ''
+      tradeLogs.push({ date, amount, code, type: log.type })
+      continue
+    }
     add(cashByDate, date, amount)
     if (log.category === 'capital' && log.note !== '初始') add(capitalByDate, date, amount)
   }
@@ -36,9 +42,24 @@ function collectFlows(transactions, capitalLogs) {
       throw new Error('交易缺少有效的成交信息')
     }
     const buy = tx.type === 'buy'
+    // 现金按成交日归集：优先用配对的交易流水金额，其次按成交额+手续费
+    const expected = buy
+      ? -(cents(tx.amount) + cents(tx.fee || 0))
+      : cents(tx.amount) - cents(tx.fee || 0)
+    let idx = tradeLogs.findIndex(l => l.amount === expected && (!l.code || l.code === tx.stock_code))
+    if (idx < 0) idx = tradeLogs.findIndex(l => l.amount === expected)
+    let cash = expected
+    if (idx >= 0) {
+      cash = tradeLogs[idx].amount
+      tradeLogs.splice(idx, 1)
+    }
+    add(cashByDate, date, cash)
     if (!tradesByDate.has(date)) tradesByDate.set(date, new Map())
     add(tradesByDate.get(date), tx.stock_code, quantity * (buy ? 1 : -1))
   }
+
+  // 未配对的交易流水按录入日归集
+  for (const log of tradeLogs) add(cashByDate, log.date, log.amount)
 
   return { cashByDate, capitalByDate, tradesByDate }
 }
