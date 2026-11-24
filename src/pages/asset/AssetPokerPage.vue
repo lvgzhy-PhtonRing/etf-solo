@@ -53,7 +53,7 @@
       <div class="section-card chart-card">
         <div class="chart-head">
           <span class="chart-title"><span class="dot"></span>各期趋势</span>
-          <button class="fs-btn" @click="fsOpen = true">⛶ 全屏</button>
+          <button class="fs-btn" @click="enterFs">⛶ 全屏</button>
         </div>
 
         <div class="chart-info">
@@ -119,7 +119,7 @@
     <div v-if="fsOpen" class="fs-overlay">
       <div class="fs-header">
         <span class="fs-title">德州战绩 · {{ modeLabel }}</span>
-        <button class="fs-close" @click="fsOpen = false">✕</button>
+        <button class="fs-close" @click="exitFs">✕</button>
       </div>
       <div class="fs-body">
         <div class="chart-info chart-info--fs">
@@ -161,6 +161,29 @@ const MODES = [
 const filter = ref('线上')
 const mode = ref('week')
 const fsOpen = ref(false)
+
+// 与源程序一致：尝试浏览器全屏 + 横屏锁定
+async function enterFs() {
+  fsOpen.value = true
+  try {
+    const el = document.documentElement
+    if (el.requestFullscreen) await el.requestFullscreen().catch(() => {})
+    else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen()
+  } catch (e) { /* 忽略 */ }
+  try {
+    if (screen.orientation && screen.orientation.lock) {
+      screen.orientation.lock('landscape').catch(() => {})
+    }
+  } catch (e) { /* 忽略 */ }
+}
+
+function exitFs() {
+  fsOpen.value = false
+  try {
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {})
+    if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock()
+  } catch (e) { /* 忽略 */ }
+}
 
 const modeLabel = computed(() => MODES.find(m => m.key === mode.value)?.label || '')
 

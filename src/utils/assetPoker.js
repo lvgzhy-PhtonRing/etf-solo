@@ -64,6 +64,8 @@ export function pokerChart(bars = []) {
     return {
       key: b.key,
       net,
+      income: b.income || 0,
+      expense: b.expense || 0,
       isUp: net >= 0,
       // 相对半幅的百分比；最小 1% 保证可见
       heightPct: Math.max(1, (Math.abs(net) / halfRange) * 100)

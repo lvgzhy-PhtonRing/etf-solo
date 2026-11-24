@@ -1,27 +1,57 @@
 <template>
   <div class="page ledger-page">
     <div class="page-header">
-      <span class="page-title">收支账本<span class="page-sub">实际出入帐记录</span></span>
-      <button class="add-btn" @click="openAdd">＋ 记一笔</button>
+      <span class="page-title">收支账本<span class="page-sub">账面出入账记录</span></span>
     </div>
 
     <LoadErrorTip v-if="store.error" :message="store.error" @retry="store.loadAll()" />
 
-    <!-- 合计 / 差额 -->
-    <div class="section-card sum-card">
-      <div class="sum-row">
-        <span class="sum-label">账面资产（流水合计）</span>
-        <span class="sum-value num-mono">{{ formatMoney(ledgerTotal) }}</span>
+    <!-- 账面资产总数 -->
+    <div class="hero-card">
+      <div class="hero-label">账面资产总数 (元)</div>
+      <div class="hero-value num-mono">{{ formatMoney(ledgerTotal) }}</div>
+      <div class="hero-foot">
+        <span>收支记录平衡</span>
+        <span>差异: <span class="num-mono" :class="diff >= 0 ? 'warn' : 'fall'">{{ diff >= 0 ? '+' : '' }}{{ formatMoney(diff) }}</span></span>
       </div>
-      <div class="sum-row">
-        <span class="sum-label">实际可支配</span>
-        <span class="sum-value num-mono">{{ formatMoney(store.totals.finalVal) }}</span>
+    </div>
+
+    <!-- 记一笔（内联表单，与源程序一致） -->
+    <div class="add-card" :class="form.type === 'income' ? 'add-card--income' : 'add-card--expense'">
+      <div v-if="editing" class="editing-tip">✏️ 正在编辑第 {{ editing.id }} 条 <button class="edit-cancel" @click="cancelEdit">取消</button></div>
+      <input
+        v-model="form.note"
+        class="add-input add-input--full"
+        type="text"
+        placeholder="事项说明不能为空"
+      />
+      <div class="add-row">
+        <button class="pick" :class="form.type === 'expense' ? 'pick--expense' : 'pick--idle'" @click="setType('expense')">支出</button>
+        <button class="pick" :class="form.type === 'income' ? 'pick--income' : 'pick--idle'" @click="setType('income')">收入</button>
       </div>
-      <div class="sum-row sum-row--diff">
-        <span class="sum-label">差异</span>
-        <span class="sum-value num-mono" :class="diff >= 0 ? 'warn' : 'fall'">
-          {{ diff >= 0 ? '+' : '' }}{{ formatMoney(diff) }}
-        </span>
+      <div class="add-row">
+        <select v-model="form.category" class="add-input" @change="onCategoryChange">
+          <option v-for="o in options" :key="o.value" :value="o.value">{{ o.label }}</option>
+        </select>
+        <select v-model="form.account" class="add-input">
+          <option v-for="a in ACCOUNT_OPTIONS" :key="a" :value="a">{{ a }}</option>
+        </select>
+      </div>
+      <div v-if="isDz" class="add-row">
+        <button class="pick" :class="form.dz_mode === '线上' ? 'pick--online' : 'pick--idle'" @click="form.dz_mode = '线上'">线上</button>
+        <button class="pick" :class="form.dz_mode === '线下' ? 'pick--offline' : 'pick--idle'" @click="form.dz_mode = '线下'">线下</button>
+      </div>
+      <div class="add-row">
+        <input v-model="form.date" class="add-input" type="date" />
+        <input
+          class="add-input num-mono"
+          type="text"
+          inputmode="decimal"
+          :placeholder="form.type === 'expense' ? '支出金额' : '收入金额'"
+          :value="form.amount"
+          @input="onAmountInput"
+        />
+        <button class="add-submit" :disabled="saving" @click="onSave">{{ saving ? '保存中…' : (editing ? '保存修改' : '记一笔') }}</button>
       </div>
     </div>
 
@@ -84,76 +114,6 @@
         </div>
       </div>
     </template>
-
-    <!-- 新增/编辑 -->
-    <van-popup v-model:show="formShow" position="bottom" round :style="{ maxHeight: '88%' }">
-      <div class="form-panel">
-        <div class="form-title">{{ editing ? '编辑记录' : '记一笔' }}</div>
-
-        <div class="type-switch">
-          <button class="type-btn" :class="{ 'type-btn--on type-btn--expense': form.type === 'expense' }" @click="setType('expense')">支出</button>
-          <button class="type-btn" :class="{ 'type-btn--on type-btn--income': form.type === 'income' }" @click="setType('income')">收入</button>
-        </div>
-
-        <div class="fld-row">
-          <label class="fld">
-            <span>分类</span>
-            <select v-model="form.category" class="fld-input">
-              <option v-for="c in categories" :key="c" :value="c">{{ c }}</option>
-            </select>
-          </label>
-          <label class="fld">
-            <span>账户</span>
-            <select v-model="form.account" class="fld-input">
-              <option v-for="a in ACCOUNTS" :key="a" :value="a">{{ a }}</option>
-            </select>
-          </label>
-        </div>
-
-        <div v-if="isDz" class="fld">
-          <span>德州模式</span>
-          <div class="dz-switch">
-            <button
-              v-for="m in DZ_MODES"
-              :key="m"
-              class="dz-btn"
-              :class="form.dz_mode === m ? (m === '线上' ? 'dz-btn--on-line' : 'dz-btn--on-offline') : ''"
-              @click="form.dz_mode = m"
-            >{{ m }}</button>
-          </div>
-        </div>
-
-        <div class="fld-row">
-          <label class="fld">
-            <span>日期</span>
-            <input v-model="form.date" class="fld-input" type="date" />
-          </label>
-          <label class="fld">
-            <span>金额</span>
-            <input
-              class="fld-input num-mono"
-              type="text"
-              inputmode="decimal"
-              :placeholder="form.type === 'expense' ? '支出金额' : '收入金额'"
-              :value="form.amount"
-              @input="onAmountInput"
-            />
-          </label>
-        </div>
-
-        <label class="fld">
-          <span>标题</span>
-          <input v-model="form.note" class="fld-input" type="text" placeholder="如：午餐、月付订阅" />
-        </label>
-
-        <div v-if="formError" class="form-err">{{ formError }}</div>
-
-        <div class="form-actions">
-          <button class="btn-ghost" @click="formShow = false">取消</button>
-          <button class="btn-primary" :disabled="saving" @click="onSave">{{ saving ? '保存中…' : '保存' }}</button>
-        </div>
-      </div>
-    </van-popup>
   </div>
 </template>
 
@@ -163,7 +123,7 @@ import LoadErrorTip from '@/components/common/LoadErrorTip.vue'
 import LoadingSkeleton from '@/components/common/LoadingSkeleton.vue'
 import { useAssetStore } from '@/stores/assets'
 import { formatMoney } from '@/utils/formatters'
-import { ACCOUNTS, DZ_MODES, categoriesOf } from '@/utils/assetCategories'
+import { TYPE_OPTIONS, ACCOUNT_OPTIONS, optionsOf, categoriesOf } from '@/utils/assetCategories'
 import { groupFlows } from '@/utils/assetLedger'
 import { filterDecimal } from '@/utils/decimalInput'
 
@@ -190,7 +150,7 @@ function toggleGroup(key) {
   collapsed[k] = current === undefined ? !group.isOld : !current
 }
 
-// 分类徽标配色（沿用源程序 getCategoryBadge）
+// 分类徽标配色（源程序 getCategoryBadge）
 const BADGE = {
   德州出账: 'badge--red',
   德州入账: 'badge--red',
@@ -205,10 +165,8 @@ function badgeClass(cat) {
   return BADGE[cat] || 'badge--gray'
 }
 
-// ===== 表单 =====
-const formShow = ref(false)
+// ===== 内联表单 =====
 const saving = ref(false)
-const formError = ref('')
 const editing = ref(null)
 
 const today = () => {
@@ -220,13 +178,13 @@ const form = reactive({
   type: 'expense',
   amount: '',
   date: today(),
-  category: '生活购物',
+  category: '德州出账',
   note: '',
   account: '微信支付',
   dz_mode: '线上'
 })
 
-const categories = computed(() => categoriesOf(form.type))
+const options = computed(() => optionsOf(form.type))
 const isDz = computed(() => form.category === '德州入账' || form.category === '德州出账')
 
 function setType(type) {
@@ -235,24 +193,59 @@ function setType(type) {
   if (!list.includes(form.category)) form.category = list[0]
 }
 
+function onCategoryChange() {}
+
 function onAmountInput(e) {
   form.amount = filterDecimal(e.target.value)
   e.target.value = form.amount
 }
 
-function openAdd() {
+function resetForm() {
+  form.note = ''
+  form.amount = ''
+  form.dz_mode = '线上'
+}
+
+function cancelEdit() {
   editing.value = null
-  formError.value = ''
-  Object.assign(form, {
-    type: 'expense', amount: '', date: today(),
-    category: '生活购物', note: '', account: '微信支付', dz_mode: '线上'
-  })
-  formShow.value = true
+  resetForm()
+}
+
+async function onSave() {
+  const title = (form.note || '').trim()
+  const amt = parseFloat(form.amount) || 0
+  if (!title) { alert('⚠️ 请填写事项说明'); return }
+  if (amt === 0) { alert('⚠️ 请填写金额'); return }
+  if (!form.date) { alert('⚠️ 请选择日期'); return }
+
+  const signed = Math.round((form.type === 'income' ? amt : -amt) * 100) / 100
+  const row = {
+    date: form.date,
+    type: form.type,
+    category: form.category,
+    amount: signed,
+    note: title,
+    account: form.account,
+    dz_mode: isDz.value ? form.dz_mode : null
+  }
+  saving.value = true
+  try {
+    if (editing.value) {
+      await store.editFlow(editing.value.id, row)
+      editing.value = null
+    } else {
+      await store.addFlow(row)
+    }
+    resetForm()
+  } catch (e) {
+    alert('保存失败：' + e.message)
+  } finally {
+    saving.value = false
+  }
 }
 
 function openEdit(f) {
   editing.value = f
-  formError.value = ''
   Object.assign(form, {
     type: f.type,
     amount: String(Math.abs(f.amount)),
@@ -262,38 +255,11 @@ function openEdit(f) {
     account: f.account || '微信支付',
     dz_mode: f.dz_mode || '线上'
   })
-  formShow.value = true
-}
-
-async function onSave() {
-  formError.value = ''
-  const amt = parseFloat(form.amount)
-  if (!(amt > 0)) { formError.value = '请输入大于 0 的金额'; return }
-  if (!form.date) { formError.value = '请选择日期'; return }
-  const signed = Math.round((form.type === 'expense' ? -amt : amt) * 100) / 100
-  const row = {
-    date: form.date,
-    type: form.type,
-    category: form.category,
-    amount: signed,
-    note: form.note.trim() || null,
-    account: form.account,
-    dz_mode: isDz.value ? form.dz_mode : null
-  }
-  saving.value = true
-  try {
-    if (editing.value) await store.editFlow(editing.value.id, row)
-    else await store.addFlow(row)
-    formShow.value = false
-  } catch (e) {
-    formError.value = e.message
-  } finally {
-    saving.value = false
-  }
+  window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
 async function onDelete(f) {
-  if (!confirm(`删除「${f.note || f.category}」${formatMoney(f.amount)}？`)) return
+  if (!confirm('确定删除？')) return
   try {
     await store.removeFlow(f.id)
   } catch (e) {
@@ -308,22 +274,79 @@ onMounted(() => {
 
 <style scoped>
 .page-sub { font-size: 11px; font-weight: 400; color: var(--text-muted); margin-left: 8px; }
-.add-btn {
-  border: none; border-radius: var(--radius-round);
-  padding: 6px 14px;
-  background: var(--bg-accent); color: #fff;
-  font-size: 12px; font-family: inherit; cursor: pointer;
+
+.hero-card {
+  border-radius: var(--radius-lg);
+  padding: 18px 18px 14px;
+  background: linear-gradient(150deg, #4c3a8f, #3b2d73 60%, #322565);
+  color: #fff;
+  box-shadow: 0 6px 20px rgba(60, 48, 100, .22);
+  margin-bottom: 14px;
 }
+.hero-label { font-size: 12px; color: rgba(255,255,255,.62); }
+.hero-value { font-size: 30px; font-weight: 700; margin-top: 4px; letter-spacing: .5px; }
+.hero-foot {
+  display: flex; justify-content: space-between;
+  margin-top: 12px; padding-top: 10px;
+  border-top: 1px solid rgba(255,255,255,.16);
+  font-size: 11px; color: rgba(255,255,255,.66);
+}
+.warn { color: #fbbf24; }
 
-.sum-card { display: flex; flex-direction: column; gap: 8px; }
-.sum-row { display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; }
-.sum-label { color: var(--text-secondary); }
-.sum-value { font-size: 14px; font-weight: 600; }
-.sum-row--diff { padding-top: 8px; border-top: 1px solid var(--border-soft); }
-.warn { color: var(--color-warn); }
-.muted { color: var(--text-muted); }
+/* 记一笔内联卡：支出绿底 / 收入红底（源程序同规则） */
+.add-card {
+  border-radius: var(--radius-lg);
+  padding: 14px;
+  margin-bottom: 14px;
+  border: 1px solid rgba(46,139,87,.25);
+  background: rgba(46,139,87,.07);
+}
+.add-card--income {
+  border-color: rgba(214,69,69,.25);
+  background: rgba(214,69,69,.07);
+}
+.editing-tip {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 11px; color: var(--bg-accent); font-weight: 600;
+  margin-bottom: 8px;
+}
+.edit-cancel { border: none; background: none; color: var(--text-muted); font-size: 11px; cursor: pointer; }
+.add-row { display: flex; gap: 8px; margin-bottom: 8px; }
+.add-row:last-child { margin-bottom: 0; }
+.add-input {
+  flex: 1; min-width: 0;
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  padding: 9px 12px;
+  font-size: 13px;
+  color: var(--text-primary);
+  outline: none;
+  font-family: inherit;
+}
+.add-input--full { width: 100%; margin-bottom: 8px; }
+.add-input:focus { border-color: var(--bg-accent); }
 
-.list-head { display: flex; justify-content: space-between; align-items: center; margin: 12px 2px 8px; }
+.pick {
+  flex: 1; padding: 9px; border-radius: var(--radius-md);
+  border: 1px solid var(--border-soft); background: var(--bg-hover);
+  color: var(--text-muted); font-size: 13px; font-family: inherit; cursor: pointer;
+}
+/* 源程序：支出绿、收入红；线上蓝、线下绿 */
+.pick--expense { background: rgba(46,139,87,.12); color: var(--color-fall); border-color: rgba(46,139,87,.4); font-weight: 600; }
+.pick--income { background: rgba(214,69,69,.12); color: var(--color-rise); border-color: rgba(214,69,69,.4); font-weight: 600; }
+.pick--online { background: #eff6ff; color: #2563eb; border-color: #bfdbfe; font-weight: 600; }
+.pick--offline { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; font-weight: 600; }
+
+.add-submit {
+  flex: 1.2;
+  border: none; border-radius: var(--radius-md);
+  background: #7c3aed; color: #fff;
+  font-size: 13px; font-weight: 700; font-family: inherit; cursor: pointer;
+}
+.add-submit:disabled { opacity: .6; }
+
+.list-head { display: flex; justify-content: space-between; align-items: center; margin: 14px 2px 8px; }
 .lh-left { display: flex; align-items: center; gap: 8px; }
 .lh-title { font-size: 13px; font-weight: 600; color: var(--text-secondary); }
 .swipe-hint {
@@ -337,7 +360,7 @@ onMounted(() => {
   background: transparent; color: var(--text-muted);
   font-size: 11px; font-family: inherit; cursor: pointer;
 }
-.view-btn--on { background: var(--bg-card); color: var(--bg-accent); font-weight: 600; box-shadow: 0 1px 3px rgba(120,100,75,.12); }
+.view-btn--on { background: var(--bg-card); color: #7c3aed; font-weight: 600; box-shadow: 0 1px 3px rgba(120,100,75,.12); }
 
 .empty-tip { text-align: center; padding: 40px 0; color: var(--text-muted); font-size: 13px; }
 
@@ -391,50 +414,4 @@ onMounted(() => {
 .swipe-act { height: 100%; border: none; color: #fff; font-size: 13px; padding: 0 16px; }
 .swipe-act--edit { background: #6366f1; }
 .swipe-act--del { background: var(--color-rise); }
-
-.form-panel { padding: 18px 16px 24px; }
-.form-title { font-size: 16px; font-weight: 700; margin-bottom: 14px; }
-.type-switch { display: flex; gap: 8px; margin-bottom: 14px; }
-.type-btn {
-  flex: 1; padding: 9px; border-radius: var(--radius-md);
-  border: 1px solid var(--border-soft); background: var(--bg-hover);
-  color: var(--text-secondary); font-size: 13px; font-family: inherit; cursor: pointer;
-}
-.type-btn--on.type-btn--expense { background: rgba(214,69,69,.12); color: var(--color-rise); border-color: rgba(214,69,69,.4); font-weight: 600; }
-.type-btn--on.type-btn--income { background: rgba(46,139,87,.12); color: var(--color-fall); border-color: rgba(46,139,87,.4); font-weight: 600; }
-
-.fld { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; flex: 1; min-width: 0; }
-.fld > span { font-size: 11px; color: var(--text-muted); }
-.fld-input {
-  width: 100%; box-sizing: border-box;
-  background: var(--bg-hover);
-  border: 1px solid transparent;
-  border-radius: var(--radius-md);
-  padding: 9px 12px;
-  font-size: 14px;
-  color: var(--text-primary);
-  outline: none;
-  font-family: inherit;
-}
-.fld-input:focus { border-color: var(--bg-accent); background: var(--bg-card); }
-.fld-row { display: flex; gap: 10px; }
-
-.dz-switch { display: flex; gap: 8px; }
-.dz-btn {
-  flex: 1; padding: 9px; border-radius: var(--radius-md);
-  border: 1px solid var(--border-soft); background: var(--bg-hover);
-  color: var(--text-muted); font-size: 13px; font-family: inherit; cursor: pointer;
-}
-.dz-btn--on-line { background: #eff6ff; color: #2563eb; border-color: #bfdbfe; font-weight: 600; }
-.dz-btn--on-offline { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; font-weight: 600; }
-
-.form-err { font-size: 12px; color: var(--color-rise); margin-bottom: 10px; }
-.form-actions { display: flex; gap: 10px; margin-top: 6px; }
-.btn-ghost, .btn-primary {
-  flex: 1; padding: 11px; border-radius: var(--radius-md);
-  font-size: 14px; font-family: inherit; cursor: pointer; border: none;
-}
-.btn-ghost { background: var(--bg-hover); color: var(--text-secondary); }
-.btn-primary { background: var(--bg-accent); color: #fff; }
-.btn-primary:disabled { opacity: .6; }
 </style>

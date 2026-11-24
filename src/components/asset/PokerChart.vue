@@ -9,6 +9,10 @@
         <div class="kline-vol" :class="it.isUp ? 'up' : 'down'">
           {{ it.net >= 0 ? '+' : '' }}{{ fmt(it.net) }}
         </div>
+        <div v-if="fullscreen" class="kline-fs-detail">
+          <span class="kfs-in">收 {{ fmt(it.income) }}</span>
+          <span class="kfs-out">支 {{ fmt(it.expense) }}</span>
+        </div>
         <div class="kline-label">{{ labelOf(it.key) }}</div>
       </div>
     </div>
@@ -128,6 +132,15 @@ watch(() => props.bars, scrollToEnd)
   max-width: 48px;
 }
 .kline-empty { text-align: center; font-size: 12px; color: var(--text-muted); padding: 20px 0; }
+
+/* 全屏模式：每根蜡烛下显示 收/支 明细 */
+.kline-fs-detail {
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  font-size: 10px; line-height: 1.2;
+  margin-top: 4px; white-space: nowrap;
+}
+.kfs-in { color: var(--color-rise); }
+.kfs-out { color: var(--color-fall); }
 
 /* 全屏模式放大 */
 .kline-chart--fs { height: 58vh; }

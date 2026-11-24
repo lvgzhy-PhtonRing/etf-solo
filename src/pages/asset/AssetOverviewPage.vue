@@ -1,7 +1,7 @@
 <template>
   <div class="page asset-page">
     <div class="page-header">
-      <span class="page-title">资产概览<span class="title-en">Assets Overview</span></span>
+      <span class="page-title">资产概览<span class="page-sub">实时计算可支配资金</span></span>
     </div>
 
     <LoadErrorTip v-if="store.error" :message="store.error" @retry="store.loadAll()" />
@@ -75,7 +75,7 @@
               @input="onInput(adj.id, $event.target.value)"
               @change="commit(adj.id)"
             />
-            <button class="adj-sign" @click="toggleSign(adj.id)">±</button>
+            <button v-if="adj.id !== 'adj_lend'" class="adj-sign" @click="toggleSign(adj.id)">±</button>
           </div>
         </div>
       </div>
@@ -222,8 +222,8 @@ watch(
 
 const timers = {}
 function onInput(id, raw) {
-  const isAdj = ADJUSTMENTS.some(a => a.id === id)
-  inputs[id] = filterDecimal(raw, { allowNegative: isAdj })
+  // 源程序：仅 adj_shop / adj_family 允许负号
+  inputs[id] = filterDecimal(raw, { allowNegative: id !== 'adj_lend' })
   clearTimeout(timers[id])
   timers[id] = setTimeout(() => commit(id), 500)
 }
@@ -233,9 +233,8 @@ async function commit(id) {
   const raw = inputs[id]
   if (raw === '-' || raw === '') return
   const num = parseFloat(raw) || 0
-  const isAdj = ADJUSTMENTS.some(a => a.id === id)
   try {
-    if (isAdj) await store.setAdjustment(id, num)
+    if (id.startsWith('adj_')) await store.setAdjustment(id, num)
     else await store.setAccount(id, num)
   } catch (e) {
     alert('保存失败：' + e.message)
@@ -249,9 +248,9 @@ async function toggleSign(id) {
   await commit(id)
 }
 
-// 负数输入高亮（仅调整项，与原程序一致）
+// 负数输入高亮（仅闲鱼店/家庭，与源程序 refreshNegHighlight 一致）
 function isNeg(id) {
-  return ADJUSTMENTS.some(a => a.id === id) && (parseFloat(inputs[id]) || 0) < 0
+  return id !== 'adj_lend' && (parseFloat(inputs[id]) || 0) < 0
 }
 
 // ===== 快照 =====
@@ -332,6 +331,9 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.page-header { display: flex; align-items: baseline; padding: 4px 2px 12px; }
+.page-title { font-size: 17px; font-weight: 700; }
+.page-sub { font-size: 11px; font-weight: 400; color: var(--text-muted); margin-left: 8px; }
 .hero-card {
   border-radius: var(--radius-lg);
   padding: 18px 18px 14px;

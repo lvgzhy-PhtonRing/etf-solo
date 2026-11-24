@@ -1,8 +1,7 @@
 <template>
   <div class="page stats-page">
     <div class="page-header">
-      <span class="page-title">统计报表<span class="page-sub">按分类统计支出与收入</span></span>
-    </div>
+      <span class="page-title">收支统计<span class="page-sub">按分类统计支出与收入</span></span>    </div>
 
     <LoadErrorTip v-if="store.error" :message="store.error" @retry="store.loadAll()" />
 
@@ -59,7 +58,7 @@
         </div>
         <div v-if="!expense.items.length" class="cat-empty">暂无记录</div>
         <div v-else class="cat-list">
-          <div v-for="it in expense.items" :key="it.category" class="cat-item" @click="openDetail('expense', it.category)">
+          <div v-for="it in expense.items" :key="it.category" class="cat-item">
             <div class="cat-line">
               <span class="cat-name">{{ it.category }}</span>
               <div class="cat-track">
@@ -68,12 +67,12 @@
               <span class="cat-amt num-mono">{{ formatMoney(it.amount) }}</span>
               <span class="cat-pct">{{ Math.round(it.pct) }}%</span>
             </div>
-            <div v-if="detail.type === 'expense' && detail.category === it.category" class="cat-detail">
+            <div v-if="detailOf('expense', it.category).flows.length" class="cat-detail">
               <div class="cd-head">
-                <span>共 {{ detail.flows.length }} 条</span>
-                <span>合计 {{ formatMoney(detail.total) }}</span>
+                <span>共 {{ detailOf('expense', it.category).flows.length }} 条</span>
+                <span>合计 {{ formatMoney(detailOf('expense', it.category).total) }}</span>
               </div>
-              <div v-for="f in detail.flows" :key="f.id" class="cd-row">
+              <div v-for="f in detailOf('expense', it.category).flows" :key="f.id" class="cd-row">
                 <div class="cd-left">
                   <span class="cd-title">{{ f.note || f.category }}</span>
                   <span class="cd-meta">{{ f.date.slice(5) }} · {{ f.account || '—' }}</span>
@@ -93,7 +92,7 @@
         </div>
         <div v-if="!income.items.length" class="cat-empty">暂无记录</div>
         <div v-else class="cat-list">
-          <div v-for="it in income.items" :key="it.category" class="cat-item" @click="openDetail('income', it.category)">
+          <div v-for="it in income.items" :key="it.category" class="cat-item">
             <div class="cat-line">
               <span class="cat-name">{{ it.category }}</span>
               <div class="cat-track">
@@ -102,12 +101,12 @@
               <span class="cat-amt num-mono">{{ formatMoney(it.amount) }}</span>
               <span class="cat-pct">{{ Math.round(it.pct) }}%</span>
             </div>
-            <div v-if="detail.type === 'income' && detail.category === it.category" class="cat-detail">
+            <div v-if="detailOf('income', it.category).flows.length" class="cat-detail">
               <div class="cd-head">
-                <span>共 {{ detail.flows.length }} 条</span>
-                <span>合计 {{ formatMoney(detail.total) }}</span>
+                <span>共 {{ detailOf('income', it.category).flows.length }} 条</span>
+                <span>合计 {{ formatMoney(detailOf('income', it.category).total) }}</span>
               </div>
-              <div v-for="f in detail.flows" :key="f.id" class="cd-row">
+              <div v-for="f in detailOf('income', it.category).flows" :key="f.id" class="cd-row">
                 <div class="cd-left">
                   <span class="cd-title">{{ f.note || f.category }}</span>
                   <span class="cd-meta">{{ f.date.slice(5) }} · {{ f.account || '—' }}</span>
@@ -125,7 +124,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import LoadErrorTip from '@/components/common/LoadErrorTip.vue'
 import LoadingSkeleton from '@/components/common/LoadingSkeleton.vue'
 import { useAssetStore } from '@/stores/assets'
@@ -189,24 +188,28 @@ function refresh() {
   }
 }
 
-const detail = reactive({ type: '', category: '', flows: [], total: 0 })
-
-function openDetail(type, category) {
-  if (detail.type === type && detail.category === category) {
-    detail.type = ''
-    detail.category = ''
-    detail.flows = []
-    detail.total = 0
-    return
+// 每个分类的明细始终展开（源程序 renderCatBreakdown 行为）
+const detailCache = computed(() => {
+  const map = new Map()
+  for (const type of ['expense', 'income']) {
+    for (const f of inWindow.value) {
+      if (f.type !== type) continue
+      const key = type + ':' + f.category
+      if (!map.has(key)) map.set(key, { flows: [], total: 0 })
+      const e = map.get(key)
+      e.flows.push(f)
+      e.total += Math.abs(Number(f.amount) || 0)
+    }
   }
-  const flows = inWindow.value
-    .filter(f => f.type === type && f.category === category)
-    .slice()
-    .sort((a, b) => (a.date < b.date ? 1 : -1))
-  detail.type = type
-  detail.category = category
-  detail.flows = flows
-  detail.total = Math.round(flows.reduce((s, f) => s + Math.abs(Number(f.amount) || 0), 0) * 100) / 100
+  for (const v of map.values()) {
+    v.total = Math.round(v.total * 100) / 100
+    v.flows.sort((a, b) => (a.date < b.date ? 1 : -1))
+  }
+  return map
+})
+
+function detailOf(type, category) {
+  return detailCache.value.get(type + ':' + category) || { flows: [], total: 0 }
 }
 
 onMounted(() => {
