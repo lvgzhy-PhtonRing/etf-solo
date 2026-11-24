@@ -18,8 +18,8 @@ describe('navigation（资产/股票两级导航）', () => {
     expect(TABS.asset.map(t => t.label)).toEqual(['概览', '账本', '统计', '德州'])
   })
 
-  it('股票态 4 tab：持仓/仓位/趋势/资本', () => {
-    expect(TABS.stock.map(t => t.label)).toEqual(['持仓', '仓位', '趋势', '资本'])
+  it('股票态 5 tab：持仓/仓位/净值/趋势/资本', () => {
+    expect(TABS.stock.map(t => t.label)).toEqual(['持仓', '仓位', '净值', '趋势', '资本'])
   })
 
   it('sectionOf 按路径前缀判定大段', () => {
@@ -47,6 +47,7 @@ describe('navigation（资产/股票两级导航）', () => {
 
   it('tabIndex 定位当前 tab', () => {
     expect(tabIndex('stock', '/stock/positions')).toBe(1)
+    expect(tabIndex('stock', '/stock/netvalue')).toBe(2)
     expect(tabIndex('asset', '/asset/ledger')).toBe(1)
     expect(tabIndex('asset', '/nope')).toBe(-1)
   })
@@ -54,7 +55,7 @@ describe('navigation（资产/股票两级导航）', () => {
   it('旧路由重定向到新路由', () => {
     expect(legacyRedirect('/dashboard')).toBe('/stock/holdings')
     expect(legacyRedirect('/positions')).toBe('/stock/positions')
-    expect(legacyRedirect('/netvalue')).toBe('/stock/positions')
+    expect(legacyRedirect('/netvalue')).toBe('/stock/netvalue')
     expect(legacyRedirect('/trend')).toBe('/stock/trends')
     expect(legacyRedirect('/trends')).toBe('/stock/trends')
     expect(legacyRedirect('/fund')).toBe('/stock/capital')

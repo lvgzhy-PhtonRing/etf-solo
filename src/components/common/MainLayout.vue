@@ -73,6 +73,7 @@ const ICONS = {
   'asset-poker': 'fire-o',
   'stock-holdings': 'diamond-o',
   'stock-positions': 'pie-chart-o',
+  'stock-netvalue': 'chart-trending-o',
   'stock-trends': 'clock-o',
   'stock-capital': 'gold-coin-o'
 }

@@ -13,16 +13,17 @@ export const TABS = {
   stock: [
     { name: 'stock-holdings', path: '/stock/holdings', label: '持仓' },
     { name: 'stock-positions', path: '/stock/positions', label: '仓位' },
+    { name: 'stock-netvalue', path: '/stock/netvalue', label: '净值' },
     { name: 'stock-trends', path: '/stock/trends', label: '趋势' },
     { name: 'stock-capital', path: '/stock/capital', label: '资本' }
   ]
 }
 
-// 旧路由 → 新路由（合并后）
+// 旧路由 → 新路由
 const LEGACY = {
   '/dashboard': '/stock/holdings',
   '/positions': '/stock/positions',
-  '/netvalue': '/stock/positions',
+  '/netvalue': '/stock/netvalue',
   '/trend': '/stock/trends',
   '/trends': '/stock/trends',
   '/fund': '/stock/capital'

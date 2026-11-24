@@ -320,7 +320,7 @@ onMounted(() => {
 .fs-overlay {
   position: fixed; inset: 0; z-index: 3000;
   display: flex; flex-direction: column;
-  background: var(--bg-primary);
+  background: #fff;
 }
 .fs-header {
   display: flex; justify-content: space-between; align-items: center; gap: 12px;

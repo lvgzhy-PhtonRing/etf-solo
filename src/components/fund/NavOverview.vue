@@ -5,7 +5,7 @@
       <span class="ov-meta-title">
         <span class="ov-dot"></span>
         <span class="ov-meta-name">
-          <span class="ov-meta-code">我的账户</span>
+          <span class="ov-meta-code">账户净值</span>
           <span class="ov-meta-short">单位净值</span>
         </span>
       </span>
@@ -22,11 +22,11 @@
 
     <div class="ov-info">
       <div class="ov-info-item">
-        <div class="ov-info-label">起始快照</div>
+        <div class="ov-info-label">成立日期</div>
         <div class="ov-info-value ov-info-value--date">{{ inceptionText }}</div>
       </div>
       <div class="ov-info-item">
-        <div class="ov-info-label">累计投入</div>
+        <div class="ov-info-label">基准资产</div>
         <div class="ov-info-value num-mono">{{ scaleText }}</div>
       </div>
     </div>
@@ -48,7 +48,7 @@ import { ref, computed, onMounted } from 'vue'
 import { formatMoney } from '@/utils/formatters'
 import { fetchPositionSnapshots } from '@/api/supabase'
 import { marketDate } from '@/utils/historicalSnapshotLedger'
-import { snapshotOnOrBefore } from '@/utils/snapshotLookup'
+import { NAV_BASE_DATE, NAV_BASE_ASSET } from '@/utils/navBase'
 import { useHoldingStore } from '@/stores/holdings'
 import { usePriceStore } from '@/stores/prices'
 import { useFundStore } from '@/stores/funds'
@@ -78,30 +78,19 @@ const currentAsset = computed(() => {
   return mv + fundStore.totalAvailable
 })
 
-// 某日为止的累计外部投入（category=capital）
-function investedAt(date) {
-  return fundStore.capitalLogs
-    .filter(l => l.category === 'capital' && marketDate(l.created_at || '') <= date)
-    .reduce((s, l) => s + (l.type === 'add' ? l.amount : -l.amount), 0)
-}
-
-// 当日单位净值 = 总资产 / 累计投入
+// 当日单位净值 = 总资产 / 2026-07-29 基准资产（与 ETF 金枪不倒同口径）
 const currentNav = computed(() => {
-  const inv = investedAt(marketDate())
-  return inv > 0 && currentAsset.value > 0 ? currentAsset.value / inv : null
+  return NAV_BASE_ASSET > 0 && currentAsset.value > 0 ? currentAsset.value / NAV_BASE_ASSET : null
 })
 
 const navDate = computed(() => currentNav.value !== null ? marketDate() : (latest.value ? latest.value.date : '—'))
 
 const navText = computed(() => (currentNav.value === null ? '—' : currentNav.value.toFixed(4)))
 
-const inceptionText = computed(() => {
-  if (!snapshots.value.length) return '—'
-  const d = snapshots.value[0].date
-  return `${d.slice(0, 4)}年${Number(d.slice(5, 7))}月${Number(d.slice(8, 10))}日`
-})
+const inceptionText = computed(() =>
+  `${NAV_BASE_DATE.slice(0, 4)}年${Number(NAV_BASE_DATE.slice(5, 7))}月${Number(NAV_BASE_DATE.slice(8, 10))}日`)
 
-const scaleText = computed(() => formatMoney(fundStore.totalCapital))
+const scaleText = computed(() => formatMoney(NAV_BASE_ASSET))
 
 // 当日涨跌 = Σ(现价-昨收)×股数 / 总资产
 const dailyChange = computed(() => {
@@ -132,18 +121,23 @@ function shiftMonths(dateStr, months) {
   return toStr(d)
 }
 
+function assetOnOrBefore(dateStr) {
+  let asset = null
+  for (const s of snapshots.value) {
+    if (s.date <= dateStr) asset = s.asset
+  }
+  return asset
+}
+
 const periodReturns = computed(() => {
   const last = latest.value
-  const navNow = currentNav.value
-  if (!last || navNow === null) return PERIODS.map(it => ({ ...it, value: null }))
+  const asset = currentAsset.value
+  if (!last || !asset) return PERIODS.map(it => ({ ...it, value: null }))
   return PERIODS.map(it => {
     const target = shiftMonths(last.date, it.months)
-    const past = snapshotOnOrBefore(snapshots.value, target)
-    if (!past) return { ...it, value: null }
-    const inv = investedAt(past.date)
-    if (!(inv > 0)) return { ...it, value: null }
-    const pastNav = past.asset / inv
-    return { ...it, value: (navNow / pastNav - 1) * 100 }
+    if (target < NAV_BASE_DATE) return { ...it, value: null }
+    const past = assetOnOrBefore(target)
+    return { ...it, value: past ? (asset / past - 1) * 100 : null }
   })
 })
 

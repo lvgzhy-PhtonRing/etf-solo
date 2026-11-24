@@ -54,6 +54,12 @@ const routes = [
         meta: { title: '仓位' }
       },
       {
+        path: 'stock/netvalue',
+        name: 'stock-netvalue',
+        component: () => import('@/pages/NetValuePage.vue'),
+        meta: { title: '净值' }
+      },
+      {
         path: 'stock/trends',
         name: 'stock-trends',
         component: () => import('@/pages/TrendPage.vue'),

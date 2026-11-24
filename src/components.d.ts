@@ -7,6 +7,7 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    AccountNavChart: typeof import('./components/fund/AccountNavChart.vue')['default']
     AccountSummary: typeof import('./components/dashboard/AccountSummary.vue')['default']
     BuySheet: typeof import('./components/trade/BuySheet.vue')['default']
     CapitalDetailDialog: typeof import('./components/fund/CapitalDetailDialog.vue')['default']
@@ -26,7 +27,6 @@ declare module 'vue' {
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     SellSheet: typeof import('./components/trade/SellSheet.vue')['default']
-    SoloNavChart: typeof import('./components/fund/SoloNavChart.vue')['default']
     StockSearch: typeof import('./components/trade/StockSearch.vue')['default']
     TopSegment: typeof import('./components/common/TopSegment.vue')['default']
     TradeForm: typeof import('./components/trade/TradeForm.vue')['default']

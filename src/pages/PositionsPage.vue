@@ -8,14 +8,15 @@
     <LoadingSkeleton v-if="loading" :count="2" />
 
     <template v-else>
-      <!-- 总仓位模块 -->
+      <!-- 股票仓位：总仓位 + 股票比例合并在同一模块 -->
       <div class="section-card edge-accent">
         <div class="section-title">
-          <span class="title-accent title-accent--accent"></span>总体仓位
+          <span class="title-accent title-accent--accent"></span>股票仓位
         </div>
         <DonutChart
           :segments="chartSegments"
           :total-percent="totalPositionRatio"
+          :size="donutSize"
         />
         <div class="total-ratio-detail">
           <span class="trd-label">总市值</span>
@@ -24,28 +25,7 @@
           <span class="trd-label">总资产</span>
           <span class="trd-value num-mono">{{ formatMoney(totalAsset) }}</span>
         </div>
-        <div class="total-slogan">
-          <span class="slogan-emoji">{{ positionSlogan.emoji }}</span>
-          <span class="slogan-text">{{ positionSlogan.text }}</span>
-        </div>
-        <div class="cash-row">
-          <span class="cash-label">可用现金</span>
-          <span class="cash-value num-mono">{{ formatMoney(totalAvailable) }}</span>
-          <span class="cash-pct num-mono">{{ cashPct.toFixed(1) }}%</span>
-        </div>
-        <div class="legend-horizontal">
-          <div v-for="item in stockShares" :key="item.code" class="lh-item">
-            <span class="lh-dot" :style="{ background: item.color }"></span>
-            <span class="lh-label">{{ item.name }}</span>
-          </div>
-        </div>
-      </div>
 
-      <!-- 股票比例模块 -->
-      <div class="section-card edge-rise">
-        <div class="section-title">
-          <span class="title-accent title-accent--rise"></span>股票比例
-        </div>
         <div v-if="stockShares.length === 0" class="stock-empty">暂无持仓</div>
         <template v-else>
           <div class="stock-bar">
@@ -64,27 +44,16 @@
           <div class="stock-sum">
             <span class="stock-sum-label">合计</span>
             <span class="stock-sum-value num-mono">{{ totalPositionRatio.toFixed(1) }}%</span>
-            <span class="stock-sum-hint">= 总体仓位</span>
+            <span class="stock-sum-hint">= 股票仓位</span>
           </div>
         </template>
       </div>
-
-      <!-- 净值走势（原净值页合并于此） -->
-      <div class="section-card nav-hero">
-        <NavOverview />
-      </div>
-      <div class="section-card edge-accent">
-        <SoloNavChart />
-      </div>
-
     </template>
   </div>
 </template>
 
 <script setup>
 import LoadErrorTip from '@/components/common/LoadErrorTip.vue'
-import NavOverview from '@/components/fund/NavOverview.vue'
-import SoloNavChart from '@/components/fund/SoloNavChart.vue'
 import { ref, computed, onMounted } from 'vue'
 import { useHoldingStore } from '@/stores/holdings'
 import { usePriceStore } from '@/stores/prices'
@@ -99,6 +68,7 @@ const holdingStore = useHoldingStore()
 const priceStore = usePriceStore()
 const fundStore = useFundStore()
 const loading = ref(true)
+const donutSize = 160
 
 const totalMarketValue = computed(() => {
   return holdingStore.holdings.reduce((s, h) => {
@@ -114,25 +84,7 @@ const totalAsset = computed(() => totalMarketValue.value + totalAvailable.value)
 const totalPositionRatio = computed(() => {
   return totalAsset.value > 0 ? (totalMarketValue.value / totalAsset.value) * 100 : 0
 })
-const cashPct = computed(() => {
-  return totalAsset.value > 0 ? (totalAvailable.value / totalAsset.value) * 100 : 0
-})
 
-const positionSlogan = computed(() => {
-  const r = totalPositionRatio.value
-  if (r >= 90) return { text: '命就一条', emoji: '🆘' }
-  if (r >= 80) return { text: '准备装死', emoji: '🐻' }
-  if (r >= 70) return { text: '股神出没', emoji: '🦸' }
-  if (r >= 60) return { text: '稳健老登', emoji: '👴' }
-  if (r >= 50) return { text: '涨跌随缘', emoji: '🧘' }
-  if (r >= 40) return { text: '真的不硬', emoji: '🤏' }
-  if (r >= 30) return { text: '维族是ED', emoji: '💊' }
-  if (r >= 20) return { text: '反弹就干', emoji: '🚀' }
-  if (r >= 10) return { text: '一群老GAY', emoji: '🌈' }
-  return { text: '纯看热闹', emoji: '🍿' }
-})
-
-const donutSize = 200
 const chartRadius = donutSize / 2 - 20
 
 // ===== 股票比例（各股票市值占总资产，合计 = 总体仓位） =====
@@ -200,56 +152,15 @@ onMounted(async () => {
 .section-title { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; padding-bottom: 10px; }
 .title-accent { width: 3px; height: 13px; border-radius: 2px; }
 .title-accent--accent { background: var(--bg-accent); }
-.title-accent--rise { background: var(--color-rise); }
 .total-ratio-detail {
   display: flex; align-items: baseline; justify-content: center; gap: 6px;
   font-size: 12px; color: var(--text-secondary); margin-top: 4px;
 }
 .trd-value { font-size: 14px; font-weight: 600; color: var(--text-primary); }
 .trd-sep { color: var(--text-muted); }
-.total-slogan {
-  text-align: center;
-  padding: 6px 0 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-}
-.slogan-emoji {
-  font-size: 28px;
-  line-height: 1;
-  animation: slogan-bounce 2s ease-in-out infinite;
-}
-.slogan-text {
-  font-size: 22px;
-  font-weight: 800;
-  letter-spacing: 4px;
-  background: linear-gradient(135deg, var(--color-warn), #ff6b35);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  text-shadow: none;
-  position: relative;
-}
-@keyframes slogan-bounce {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.15); }
-}
-.cash-row {
-  display: flex; align-items: baseline; justify-content: center; gap: 8px;
-  padding: 8px 10px; margin: 6px 0 10px;
-  background: var(--bg-hover); border-radius: var(--radius-md);
-}
-.cash-label { font-size: 12px; color: var(--text-secondary); }
-.cash-value { font-size: 14px; font-weight: 600; }
-.cash-pct { font-size: 12px; color: var(--text-muted); }
-.legend-horizontal { display: flex; flex-wrap: wrap; gap: 4px 12px; justify-content: center; }
-.lh-item { display: flex; align-items: center; gap: 4px; }
-.lh-dot { width: 8px; height: 8px; border-radius: 50%; }
-.lh-label { font-size: 11px; color: var(--text-secondary); }
 
-.stock-empty { text-align: center; padding: 20px 0; font-size: 13px; color: var(--text-muted); }
-.stock-bar { display: flex; height: 10px; border-radius: 5px; overflow: hidden; background: var(--bg-subtle); margin-bottom: 12px; }
+.stock-empty { text-align: center; padding: 16px 0; font-size: 13px; color: var(--text-muted); }
+.stock-bar { display: flex; height: 10px; border-radius: 5px; overflow: hidden; background: var(--bg-subtle); margin: 14px 0 10px; }
 .stock-bar-seg { height: 100%; }
 .stock-list { display: flex; flex-direction: column; gap: 8px; }
 .stock-item { display: flex; align-items: center; gap: 8px; font-size: 12px; }
@@ -262,14 +173,4 @@ onMounted(async () => {
 .stock-sum-label { font-size: 12px; color: var(--text-secondary); }
 .stock-sum-value { font-size: 14px; font-weight: 700; }
 .stock-sum-hint { font-size: 11px; color: var(--text-muted); }
-</style>
-
-<style scoped>
-/* nav hero card (same gradient as dashboard) */
-.nav-hero {
-  padding: 12px 16px;
-  background: linear-gradient(150deg, rgba(191,107,63,.08), rgba(214,69,69,.05) 60%, #ffffff);
-  border: 1px solid var(--border-soft);
-  box-shadow: var(--shadow-card);
-}
 </style>
