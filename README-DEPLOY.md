@@ -31,8 +31,12 @@ npx supabase functions deploy backup      --project-ref efysjvbbaxwalhbbjxdc
 
 ## 4. 前端部署（GitHub Pages）
 
-1. 新建 **私有** 仓库 `etf-solo` 并推送 main（私有仓库使用 Pages 需要 GitHub Pro；免费账户请把仓库设为公开或改用 Vercel）
-2. Settings → Secrets and variables → Actions 添加：
+线上地址：**https://lvgzhy-phtonring.github.io/etf-solo/**
+
+仓库：`lvgzhy-PhtonRing/etf-solo`（公开仓库，免费账户 Pages 不支持私有仓库；代码无任何密钥）
+
+1. 推送 main 自动触发 `.github/workflows/deploy.yml`
+2. Settings → Secrets and variables → Actions：
    - `SUPABASE_URL`
    - `SUPABASE_ANON_KEY`
 3. Settings → Pages → Source 选 **GitHub Actions**
