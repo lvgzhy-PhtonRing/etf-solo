@@ -15,6 +15,7 @@ export const TABS = {
     { name: 'stock-positions', path: '/stock/positions', label: '仓位' },
     { name: 'stock-netvalue', path: '/stock/netvalue', label: '净值' },
     { name: 'stock-trends', path: '/stock/trends', label: '趋势' },
+    { name: 'stock-rankings', path: '/stock/rankings', label: '榜单' },
     { name: 'stock-capital', path: '/stock/capital', label: '资本' }
   ]
 }
@@ -25,7 +26,8 @@ const LEGACY = {
   '/positions': '/stock/positions',
   '/netvalue': '/stock/netvalue',
   '/trend': '/stock/trends',
-  '/trends': '/stock/trends',
+  '/trends': '/stock/rankings',
+  '/rankings': '/stock/rankings',
   '/fund': '/stock/capital'
 }
 

@@ -2,7 +2,7 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 import { legacyRedirect } from '@/utils/nav'
 
-const LEGACY_PATHS = ['dashboard', 'positions', 'netvalue', 'trend', 'trends', 'fund']
+const LEGACY_PATHS = ['dashboard', 'positions', 'netvalue', 'trend', 'trends', 'rankings', 'fund']
 
 const legacyRoutes = LEGACY_PATHS.map(p => ({
   path: `/${p}`,
@@ -64,6 +64,12 @@ const routes = [
         name: 'stock-trends',
         component: () => import('@/pages/TrendPage.vue'),
         meta: { title: '趋势' }
+      },
+      {
+        path: 'stock/rankings',
+        name: 'stock-rankings',
+        component: () => import('@/pages/RankingsPage.vue'),
+        meta: { title: '榜单' }
       },
       {
         path: 'stock/capital',

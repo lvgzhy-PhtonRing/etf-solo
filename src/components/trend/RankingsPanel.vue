@@ -18,7 +18,7 @@
             <span class="rank-arrow">›</span>
           </div>
         </div>
-        <button v-if="gainRankings.length > 3" class="rank-toggle" @click="gainExpanded = !gainExpanded">
+        <button v-if="gainRankings.length > 6" class="rank-toggle" @click="gainExpanded = !gainExpanded">
           {{ gainExpanded ? '收起' : `展开全部（${gainRankings.length}）` }}
         </button>
       </div>
@@ -39,7 +39,7 @@
             <span class="rank-arrow">›</span>
           </div>
         </div>
-        <button v-if="lossRankings.length > 3" class="rank-toggle" @click="lossExpanded = !lossExpanded">
+        <button v-if="lossRankings.length > 6" class="rank-toggle" @click="lossExpanded = !lossExpanded">
           {{ lossExpanded ? '收起' : `展开全部（${lossRankings.length}）` }}
         </button>
       </div>
@@ -135,8 +135,8 @@ const holdingExpanded = ref(false)
 const cleared = computed(() => computeClearedRankings(transactions.value))
 const gainRankings = computed(() => cleared.value.filter(s => s.profit > 0))
 const lossRankings = computed(() => cleared.value.filter(s => s.profit < 0).slice().sort((a, b) => a.profit - b.profit))
-const gainVisible = computed(() => gainExpanded.value ? gainRankings.value : gainRankings.value.slice(0, 3))
-const lossVisible = computed(() => lossExpanded.value ? lossRankings.value : lossRankings.value.slice(0, 3))
+const gainVisible = computed(() => gainExpanded.value ? gainRankings.value : gainRankings.value.slice(0, 6))
+const lossVisible = computed(() => lossExpanded.value ? lossRankings.value : lossRankings.value.slice(0, 6))
 const holdingProfits = computed(() => computeHoldingProfits(holdingStore.holdings, priceStore.prices))
 const holdingVisible = computed(() => holdingExpanded.value ? holdingProfits.value : holdingProfits.value.slice(0, 5))
 

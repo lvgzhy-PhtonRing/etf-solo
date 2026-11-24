@@ -75,6 +75,7 @@ const ICONS = {
   'stock-positions': 'pie-chart-o',
   'stock-netvalue': 'chart-trending-o',
   'stock-trends': 'clock-o',
+  'stock-rankings': 'fire-o',
   'stock-capital': 'gold-coin-o'
 }
 
