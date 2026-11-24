@@ -1,26 +1,25 @@
-﻿/* src/assets/styles/variables.css */
+﻿/* src/assets/styles/variables.css — 米白暖色浅色主题 */
 :root {
-  /* 主题色（方案C：灵动霓虹 — 深靛蓝底 + 顶部极光 + 玻璃卡片） */
-  --bg-primary: radial-gradient(120% 60% at 50% -8%, rgba(141,111,255,.30), transparent 60%),
-                radial-gradient(90% 50% at 8% 0%, rgba(255,77,109,.16), transparent 55%),
-                radial-gradient(90% 50% at 92% 0%, rgba(0,240,168,.14), transparent 55%),
-                linear-gradient(180deg, #181631 0%, #120f26 100%);
-  --bg-card: rgba(255,255,255,0.055);
-  --bg-solid: #1e1b3a; /* 弹层/下拉等不透明面板底（--bg-card 是半透明玻璃，不能用于弹层） */
-  --bg-accent: #6f4dff;
-  --bg-hover: rgba(255,255,255,0.07);
-  --bg-glass-border: rgba(255,255,255,0.12);
+  /* 底色 */
+  --bg-primary: #faf7f2;
+  --bg-card: #ffffff;
+  --bg-solid: #ffffff;
+  --bg-accent: #bf6b3f;
+  --bg-hover: #f3eee6;
+  --bg-subtle: #efe8dd;
+  --bg-glass-border: rgba(120, 100, 75, 0.14);
+  --border-soft: rgba(120, 100, 75, 0.14);
+  --shadow-card: 0 2px 10px rgba(120, 100, 75, 0.08);
 
   /* 涨跌色（A股习惯：涨=红，跌=绿） */
-  --color-rise: #ff4d6d;
-  --color-fall: #00f0a8;
-  --color-warn: #ffd23f;
+  --color-rise: #d64545;
+  --color-fall: #2e8b57;
+  --color-warn: #c98a2c;
 
-  
   /* 文字色 */
-  --text-primary: #f4f2ff;
-  --text-secondary: #a7a3c8;
-  --text-muted: #6f6b8f;
+  --text-primary: #2e2a24;
+  --text-secondary: #7a7266;
+  --text-muted: #a89f91;
 
   /* 间距 */
   --spacing-xs: 4px;
@@ -38,4 +37,3 @@
   /* 字体 */
   --font-number: 'Cascadia Code', 'SF Mono', 'JetBrains Mono', 'Fira Code', 'Consolas', 'Courier New', monospace;
 }
-

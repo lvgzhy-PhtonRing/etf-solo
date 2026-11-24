@@ -23,9 +23,9 @@ import SoloNavChart from '@/components/fund/SoloNavChart.vue'
 /* 基金档案：同 Dashboard 首卡渐变底 + 描边，无标题、无左侧色带 */
 .nav-hero {
   padding: 12px 16px;
-  background: linear-gradient(150deg, rgba(143, 111, 255, .16), rgba(255, 77, 109, .08) 60%, rgba(255, 255, 255, .04));
-  border: 1px solid rgba(255, 255, 255, .16);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, .25);
+  background: linear-gradient(150deg, rgba(191,107,63,.08), rgba(214,69,69,.05) 60%, #ffffff);
+  border: 1px solid var(--border-soft);
+  box-shadow: var(--shadow-card);
 }
 /* 净值比较：留白对齐趋势页模块（16 / 14 / 18） */
 .nav-card {

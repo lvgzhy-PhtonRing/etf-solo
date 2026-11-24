@@ -1,4 +1,4 @@
-/* src/assets/styles/global.css */
+/* src/assets/styles/global.css — 米白暖色浅色主题 */
 @import './variables.css';
 
 * {
@@ -26,12 +26,13 @@ body {
 .text-rise { color: var(--color-rise); }
 .text-fall { color: var(--color-fall); }
 
-/* 卡片（玻璃质感：半透明 + 细描边） */
+/* 卡片 */
 .card {
   background: var(--bg-card);
-  border: 1px solid var(--bg-glass-border);
+  border: 1px solid var(--border-soft);
   border-radius: var(--radius-lg);
   padding: var(--spacing-md);
+  box-shadow: var(--shadow-card);
 }
 
 /* 横向滚动容器 */
@@ -57,7 +58,7 @@ body {
 }
 .page-title { font-size: 17px; font-weight: 700; }
 
-/* 主标题英文副标题（细灰小字，不抢主标题风头） */
+/* 主标题英文副标题 */
 .title-en {
   font-size: 11px;
   font-weight: 400;
@@ -67,22 +68,22 @@ body {
   text-transform: uppercase;
 }
 
-/* 统一模块卡片（玻璃质感） */
+/* 统一模块卡片 */
 .section-card {
   background: var(--bg-card);
-  border: 1px solid var(--bg-glass-border);
+  border: 1px solid var(--border-soft);
   border-radius: var(--radius-lg);
   padding: 14px 16px;
   margin-bottom: 10px;
+  box-shadow: var(--shadow-card);
 }
 .section-card.compact { padding: 12px 14px; margin-bottom: 8px; }
 
-/* ===== 模块彩色左边缘 + 标题竖线（榜单"赚最多"风格，全站模块统一） ===== */
-.edge-rise { border-left: 3px solid rgba(255,77,109,0.40); }
-.edge-fall { border-left: 3px solid rgba(0,240,168,0.40); }
-.edge-warn { border-left: 3px solid rgba(255,210,63,0.40); }
-.edge-accent { border-left: 3px solid rgba(111,77,255,0.45); }
-.edge-gongyou { border-left: 3px solid rgba(77,159,255,0.45); }
+/* ===== 模块彩色左边缘 + 标题竖线 ===== */
+.edge-rise { border-left: 3px solid rgba(214,69,69,0.45); }
+.edge-fall { border-left: 3px solid rgba(46,139,87,0.45); }
+.edge-warn { border-left: 3px solid rgba(201,138,44,0.45); }
+.edge-accent { border-left: 3px solid rgba(191,107,63,0.5); }
 
 .title-accent {
   display: inline-block;
@@ -95,9 +96,23 @@ body {
 .title-accent--warn { background: var(--color-warn); }
 .title-accent--accent { background: var(--bg-accent); }
 
-/* ===== Vant 组件暗色适配（修复白弹窗/白输入混深色页） ===== */
+/* ===== Vant 浅色适配 ===== */
+:root {
+  --van-background: var(--bg-primary);
+  --van-background-2: var(--bg-card);
+  --van-text-color: var(--text-primary);
+  --van-text-color-2: var(--text-secondary);
+  --van-text-color-3: var(--text-muted);
+  --van-border-color: var(--border-soft);
+  --van-active-color: var(--bg-hover);
+  --van-cell-background: var(--bg-card);
+  --van-cell-text-color: var(--text-primary);
+  --van-field-label-color: var(--text-secondary);
+  --van-field-input-text-color: var(--text-primary);
+}
+
 .van-dialog {
-  background: #1e1b3a;
+  background: var(--bg-card);
 }
 .van-dialog__header {
   color: var(--text-primary);
@@ -109,7 +124,7 @@ body {
   color: var(--text-secondary);
 }
 .van-dialog__confirm {
-  color: #b18cff;
+  color: var(--bg-accent);
 }
 .van-button--primary {
   background: var(--bg-accent);
@@ -117,6 +132,8 @@ body {
 }
 .van-button--default {
   color: var(--text-secondary);
+  background: var(--bg-card);
+  border-color: var(--border-soft);
 }
 .van-field__label {
   color: var(--text-secondary);
@@ -127,10 +144,20 @@ body {
 .van-field__control::placeholder {
   color: var(--text-muted);
 }
+.van-popup {
+  background: var(--bg-card);
+  color: var(--text-primary);
+}
+.van-picker__toolbar,
+.van-picker__cancel,
+.van-picker__confirm {
+  color: var(--text-primary);
+}
+.van-toast {
+  background: rgba(46,42,36,0.85);
+}
 
-/* 关闭按钮必须绝对定位于弹层：Vant 基础类的 position 一旦被其他样式表
-   （如同名 .van-icon/.van-badge__wrapper 规则）以相同特异性后置覆盖，
-   X 会掉回文档流被内容推到弹层底部，此处用更高特异性固定 */
+/* 关闭按钮绝对定位 */
 .van-popup .van-popup__close-icon {
   position: absolute;
 }

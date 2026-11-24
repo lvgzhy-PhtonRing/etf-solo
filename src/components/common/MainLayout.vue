@@ -99,9 +99,9 @@ watch(() => route.name, (name) => {
   height: 36px;
   border: none;
   border-radius: 10px;
-  background: rgba(177,140,255,.16);
-  border: 1px solid rgba(177,140,255,.3);
-  color: #b18cff;
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
+  color: var(--text-secondary);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -114,7 +114,7 @@ watch(() => route.name, (name) => {
   height: 18px;
 }
 .menu-btn:active {
-  background: rgba(177,140,255,.28);
+  background: var(--bg-hover);
 }
 .main-layout :deep(.van-popup) {
   background: var(--bg-primary);
@@ -132,11 +132,11 @@ watch(() => route.name, (name) => {
   width: calc(100% - 24px);
   height: 54px;
   border-radius: 20px;
-  background: rgba(24,22,49,.60);
-  border: 1px solid rgba(255,255,255,.14);
+  background: rgba(255,255,255,0.88);
+  border: 1px solid var(--border-soft);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  box-shadow: 0 8px 24px rgba(0,0,0,.35);
+  box-shadow: 0 8px 24px rgba(120,100,75,.16);
 }
 .main-layout :deep(.van-tabbar-item) {
   color: var(--text-secondary);
@@ -153,8 +153,7 @@ watch(() => route.name, (name) => {
   margin: 0 auto;
 }
 .main-layout :deep(.van-tabbar-item--active) {
-  color: #b18cff;
+  color: var(--bg-accent);
   font-weight: 600;
-  text-shadow: 0 0 12px rgba(177,140,255,.55);
 }
 </style>

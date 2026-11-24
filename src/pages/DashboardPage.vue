@@ -207,9 +207,9 @@ const summary = computed(() => {
 <style scoped>
 .account-hero {
   padding: 12px 16px;
-  background: linear-gradient(150deg, rgba(143,111,255,.10), rgba(255,77,109,.06) 60%, rgba(255,255,255,.5));
+  background: linear-gradient(150deg, rgba(191,107,63,.08), rgba(214,69,69,.05) 60%, #ffffff);
   border: 1px solid var(--border-soft);
-  box-shadow: 0 10px 30px rgba(120,100,75,.10);
+  box-shadow: var(--shadow-card);
 }
 .action-bar {
   display: flex;

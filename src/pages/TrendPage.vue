@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="page trend-page">
     <div class="page-header">
       <span class="page-title">趋势看板<span class="title-en">Trend Dashboard</span></span>
@@ -494,7 +494,7 @@ onMounted(async () => {
 }
 .week-block {
   background: var(--bg-card);
-  border: 1px solid rgba(255,255,255,0.06);
+  border: 1px solid var(--border-soft);
   border-radius: 10px;
   padding: 6px 8px;
   margin-bottom: 6px;
@@ -514,7 +514,7 @@ onMounted(async () => {
 }
 .week-date--muted { color: var(--text-muted); }
 .week-block-pnl-wrap {
-  background: rgba(255,255,255,0.04);
+  background: var(--bg-hover);
   border-radius: 8px;
   padding: 4px 0;
 }
@@ -543,7 +543,7 @@ onMounted(async () => {
 }
 .year-cell {
   background: var(--bg-card);
-  border: 1px solid rgba(255,255,255,0.06);
+  border: 1px solid var(--border-soft);
   border-radius: 10px;
   padding: 10px 4px;
   text-align: center;
@@ -554,7 +554,7 @@ onMounted(async () => {
   margin-bottom: 4px;
 }
 .year-cell-pnl-wrap {
-  background: rgba(255,255,255,0.04);
+  background: var(--bg-hover);
   border-radius: 8px;
   padding: 6px 0;
 }
@@ -574,7 +574,7 @@ onMounted(async () => {
   align-items: center;
   gap: 8px;
   padding: 0 0 6px;
-  border-bottom: 1px solid rgba(255,255,255,0.06);
+  border-bottom: 1px solid var(--border-soft);
   margin-bottom: 4px;
 }
 .th-label {
@@ -592,7 +592,7 @@ onMounted(async () => {
   padding: 4px 0;
 }
 .trend-row--week-start {
-  border-top: 1px dashed rgba(255,255,255,0.14);
+  border-top: 1px dashed var(--border-soft);
   margin-top: 4px;
   padding-top: 8px;
 }
@@ -613,7 +613,7 @@ onMounted(async () => {
 .bar-track {
   flex: 1;
   height: 18px;
-  background: rgba(255,255,255,0.04);
+  background: var(--bg-hover);
   border-radius: 3px;
   overflow: hidden;
   min-width: 20px;
@@ -668,7 +668,7 @@ onMounted(async () => {
 /* 资金变动明细 */
 .capchg-detail {
   margin-top: 12px;
-  border-top: 1px solid rgba(255,255,255,0.06);
+  border-top: 1px solid var(--border-soft);
   padding-top: 10px;
 }
 .capchg-detail-title {
@@ -699,3 +699,4 @@ onMounted(async () => {
   color: var(--text-muted);
 }
 </style>
+
