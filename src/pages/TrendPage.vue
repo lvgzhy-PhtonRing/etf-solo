@@ -195,7 +195,7 @@ function onSwipeChange(idx) {
 function externalNetIn(startDate, endDate) {
   if (!startDate || !endDate) return 0
   return fundStore.capitalLogs
-    .filter(l => l.pool_id === null && l.category !== 'adjust' && l.note !== '初始' && l.created_at)
+    .filter(l => l.category === 'capital' && l.note !== '初始' && l.created_at)
     .filter(l => {
       const d = marketDate(l.created_at)
       return d > startDate && d <= endDate
@@ -269,10 +269,10 @@ function lastSnapshotIdxInMonth(year, month) {
   return sortedDates.value[idx].startsWith(prefix) ? idx : -1
 }
 
-// 截至 endDate 的累计外部净投入（含初始，pool_id=null，口径同 totalCapital）
+// 截至 endDate 的累计外部净投入（含初始，口径同 totalCapital）
 function externalInvestedAt(endDate) {
   return fundStore.capitalLogs
-    .filter(l => l.pool_id === null && l.category !== 'adjust' && l.created_at)
+    .filter(l => l.category === 'capital' && l.created_at)
     .filter(l => marketDate(l.created_at) <= endDate)
     .reduce((sum, l) => sum + (l.type === 'add' ? l.amount : -l.amount), 0)
 }
@@ -387,7 +387,7 @@ const capitalDetailList = computed(() => {
   const minDate = trendData.value[0].date
   const maxDate = trendData.value[trendData.value.length - 1].date
   return fundStore.capitalLogs
-    .filter(l => l.pool_id === null && l.note !== '初始' && l.category !== 'adjust' && l.created_at)
+    .filter(l => l.category === 'capital' && l.note !== '初始' && l.created_at)
     .filter(l => {
       const d = marketDate(l.created_at)
       return d >= minDate && d <= maxDate

@@ -9,14 +9,14 @@
     </div>
 
     <div class="section-card edge-accent nav-card">
-      <FundNavChart />
+      <SoloNavChart />
     </div>
   </div>
 </template>
 
 <script setup>
 import NavOverview from '@/components/fund/NavOverview.vue'
-import FundNavChart from '@/components/fund/FundNavChart.vue'
+import SoloNavChart from '@/components/fund/SoloNavChart.vue'
 </script>
 
 <style scoped>

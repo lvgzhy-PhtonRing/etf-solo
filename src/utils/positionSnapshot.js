@@ -6,6 +6,13 @@ import { usePriceStore } from '@/stores/prices'
 import { savePositionSnapshot, fetchPositionSnapshots } from '@/api/supabase'
 import { marketDate } from './historicalSnapshotLedger'
 
+// 某日外部资金净变动：只计 category=capital 且非"初始"的流水（买卖、调整不计）
+export function sumCapitalChange(capitalLogs, date) {
+  return capitalLogs
+    .filter(l => l.category === 'capital' && l.note !== '初始' && marketDate(l.created_at || '') === date)
+    .reduce((sum, l) => sum + (l.type === 'add' ? l.amount : -l.amount), 0)
+}
+
 // 判断某日是否为周五或本月最后一个工作日（周一~周五）
 function isPeriodicDay(date) {
   const dow = date.getDay()
@@ -62,9 +69,7 @@ export async function saveCurrentPositionSnapshot() {
 
   // 计算本日外部资金净变动（排除"初始"，只计增减资）
   const today = marketDate()
-  const todayCapitalChanges = fundStore.capitalLogs
-    .filter(l => l.pool_id === null && marketDate(l.created_at || '') === today && l.note !== '初始' && l.category !== 'adjust')
-    .reduce((sum, l) => sum + (l.type === 'add' ? l.amount : -l.amount), 0)
+  const todayCapitalChanges = sumCapitalChange(fundStore.capitalLogs, today)
 
   await savePositionSnapshot(today, {
     ratio: parseFloat(ratio.toFixed(1)),

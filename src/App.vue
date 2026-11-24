@@ -1,23 +1,8 @@
-<template>
+﻿<template>
   <router-view />
 </template>
 
 <script setup>
-import { onMounted } from 'vue'
-import { FUND_CODES, refreshFundNav } from '@/api/fundNav'
-
-// 每次打开软件后台抓取参考基金净值；抓不到自动回退本地数据，用户无需手动刷新
-// 串行抓取：东方财富 pingzhongdata 共用 window.Data_netWorthTrend 全局变量，
-// 并发会导致两只基金互相覆盖读到空数据
-onMounted(async () => {
-  for (const code of FUND_CODES) {
-    try {
-      await refreshFundNav(code)
-    } catch (e) {
-      console.warn('[fundNav] 启动抓取失败，使用本地数据：', e)
-    }
-  }
-})
 </script>
 
 <style>
@@ -29,3 +14,4 @@ html, body, #app {
   -webkit-font-smoothing: antialiased;
 }
 </style>
+
