@@ -66,8 +66,9 @@
 import { ref, computed, watch } from 'vue'
 import { formatMoney, formatPrice } from '@/utils/formatters'
 import { calcSellFee, calcSellActual } from '@/utils/feeCalculator'
+import { calcCostAfterSell } from '@/utils/calculators'
 import { validateSellOrder } from '@/utils/sellValidation'
-import { upsertHolding, deleteHolding, insertCapitalLog, fetchTransactionsByStock, deleteCapitalLog, deleteTransaction } from '@/api/supabase'
+import { upsertHolding, deleteHolding, insertCapitalLog, deleteCapitalLog, deleteTransaction } from '@/api/supabase'
 import { useTransactionStore } from '@/stores/transactions'
 import { useHoldingStore } from '@/stores/holdings'
 import { useFundStore } from '@/stores/funds'
@@ -103,7 +104,7 @@ const sellHoldingQty = computed(() => {
 })
 const sellFee = computed(() => {
   const amt = sellQty.value * sellPrice.value
-  return amt > 0 ? calcSellFee(amt) : 0
+  return amt > 0 ? calcSellFee(amt, stockCode.value) : 0
 })
 const sellValid = computed(() => validateSellOrder({
   price: sellPrice.value,
@@ -128,7 +129,7 @@ async function submitSell() {
   let capLog = null
   try {
     const amount = Math.round(sellQty.value * sellPrice.value * 100) / 100
-    const { fee, actualAmount } = calcSellActual(amount)
+    const { fee, actualAmount } = calcSellActual(amount, stockCode.value)
     const tx = {
       stock_code: stockCode.value,
       stock_name: stockName.value,
@@ -146,16 +147,13 @@ async function submitSell() {
     if (remaining <= 0) {
       await deleteHolding(stockCode.value)
     } else {
-      // 券商移动平均法：剩余成本 = (买入总支出 − 卖出总收入) / 剩余股数
-      const allTxs = await fetchTransactionsByStock(stockCode.value)
-      const buyTotal = allTxs.filter(t => t.type === 'buy').reduce((s, t) => s + t.amount + (t.fee || 0), 0)
-      const sellTotal = allTxs.filter(t => t.type === 'sell').reduce((s, t) => s + t.amount - (t.fee || 0), 0)
-      const newCost = parseFloat(((buyTotal - sellTotal) / remaining).toFixed(6))
+      // 券商摊薄成本：剩余成本 = (原成本总额 − 卖出净到账) / 剩余股数
+      const newCost = calcCostAfterSell(existing?.cost_price, existing?.quantity, sellQty.value, actualAmount)
       await upsertHolding({
         stock_code: stockCode.value,
         stock_name: existing?.stock_name || stockName.value,
         quantity: remaining,
-        cost_price: Math.max(newCost, 0)
+        cost_price: parseFloat(newCost.toFixed(6))
       })
     }
     holdingChanged = true

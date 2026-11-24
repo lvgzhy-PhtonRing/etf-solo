@@ -71,6 +71,7 @@ import { calcBuyFee, calcSellFee } from '@/utils/feeCalculator'
 const props = defineProps({
   isBuy: { type: Boolean, default: true },
   stockPrice: { type: Number, default: 0 },
+  stockCode: { type: String, default: '' },
   submitting: { type: Boolean, default: false }
 })
 
@@ -93,7 +94,7 @@ const computedAmount = computed(() => {
 const computedFee = computed(() => {
   const p = parseFloat(form.value.price) || 0
   const q = parseInt(form.value.quantity) || 0
-  if (p > 0 && q > 0) return formatMoney(props.isBuy ? calcBuyFee(p * q) : calcSellFee(p * q))
+  if (p > 0 && q > 0) return formatMoney(props.isBuy ? calcBuyFee(p * q, props.stockCode) : calcSellFee(p * q, props.stockCode))
   return ''
 })
 const priceVsMarket = computed(() => {

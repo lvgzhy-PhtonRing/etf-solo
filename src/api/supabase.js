@@ -30,7 +30,7 @@ export async function fetchHoldings({ strict = false } = {}) {
 }
 
 /* 获取交易记录 */
-export async function fetchTransactions(limit = 50) {
+export async function fetchTransactions(limit = 200) {
   const { data, error } = await supabase
     .from(T.transactions)
     .select('*')

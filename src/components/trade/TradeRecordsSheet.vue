@@ -296,7 +296,7 @@ function onEditPriceOrQtyChange() {
   const amount = price * qty
   editComputedAmount.value = amount
   const isSell = editingTrade.value?.type === 'sell'
-  editFee.value = amount > 0 ? (isSell ? calcSellFee(amount) : calcBuyFee(amount)) : 0
+  editFee.value = amount > 0 ? (isSell ? calcSellFee(amount, editingTrade.value?.stock_code) : calcBuyFee(amount, editingTrade.value?.stock_code)) : 0
   editComputedActual.value = amount > 0 ? (isSell ? amount - editFee.value : amount + editFee.value) : 0
 }
 
@@ -331,7 +331,7 @@ async function saveEditTrade() {
   const amount = parseFloat((price * newQty).toFixed(2))
   const log = editingTrade.value
   const isSell = log.type === 'sell'
-  const fee = isSell ? calcSellFee(amount) : calcBuyFee(amount)
+  const fee = isSell ? calcSellFee(amount, log.stock_code) : calcBuyFee(amount, log.stock_code)
   const actualAmount = isSell ? parseFloat((amount - fee).toFixed(2)) : parseFloat((amount + fee).toFixed(2))
   try {
     const txUpdates = { quantity: newQty, amount, price, fee, note: editNote.value || log.note || '' }

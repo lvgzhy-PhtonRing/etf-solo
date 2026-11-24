@@ -29,6 +29,7 @@
             :key="session"
             :is-buy="true"
             :stock-price="currentPrice"
+            :stock-code="stockCode"
             :submitting="submitting"
             @submit="onBuySubmit"
           />
@@ -79,7 +80,7 @@ async function onBuySubmit(data) {
   const amount = parseFloat(data.amount)
   const qty = data.quantity
   const price = data.price
-  const { fee, actualAmount } = calcBuyActual(amount)
+  const { fee, actualAmount } = calcBuyActual(amount, stockCode.value)
   if (actualAmount > fundStore.totalAvailable) {
     formError.value = `可用资金不足！剩余 ${formatMoney(fundStore.totalAvailable)}，本次需 ${formatMoney(actualAmount)}`
     return

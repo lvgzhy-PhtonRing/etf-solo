@@ -27,10 +27,20 @@ export function calcPositionRatio(totalMarketValue, totalAsset) {
 /**
  * 计算持仓成本均价 = 总投入金额 / 总持仓数量
  * 买入时：新均价 = (原持仓金额 + 买入金额) / (原数量 + 买入数量)
- * 卖出时：均价不变，减少数量
  */
 export function calcNewCostPrice(buyAmount, buyQuantity, currentQuantity, currentCostPrice) {
   const totalCost = (currentCostPrice || 0) * (currentQuantity || 0) + buyAmount
   const totalQty = (currentQuantity || 0) + buyQuantity
   return totalQty > 0 ? totalCost / totalQty : 0
+}
+
+/**
+ * 券商摊薄成本：卖出后剩余成本 = (原成本总额 − 卖出净到账) / 剩余股数
+ * 盈利卖出会降低成本，亏损卖出会抬高成本；清仓或净到账超过成本时返回 0。
+ */
+export function calcCostAfterSell(currentCostPrice, currentQuantity, sellQuantity, netProceeds) {
+  const remaining = (currentQuantity || 0) - (sellQuantity || 0)
+  if (remaining <= 0) return 0
+  const totalCost = (currentCostPrice || 0) * (currentQuantity || 0) - (netProceeds || 0)
+  return Math.max(totalCost / remaining, 0)
 }

@@ -1,50 +1,65 @@
 // src/utils/feeCalculator.js
-// 买入：券商佣金 0.0854‰，最低 5 元
-// 卖出：券商佣金 0.0854‰ + 印花税 0.5‰ + 过户费 0.01‰ = 0.5954‰，最低 5 元
+// 费率以 2026-08-24～2026-11-16 券商流水反推：
+// 买入：佣金约 1.5846‰；沪市（5/6/9 开头）另加过户费 0.0108‰
+// 卖出：佣金 1.5846‰ + 印花税 0.5‰（仅股票，ETF/基金免）+ 沪市过户费 0.0108‰
+// 最低费用 5 元
 
-const BROKER_RATE = 0.0000854
-const STAMP_RATE = 0.0005     // 印花税（仅卖出）
-const TRANSFER_RATE = 0.00001 // 过户费（仅卖出）
-const SELL_RATE = BROKER_RATE + STAMP_RATE + TRANSFER_RATE
+const COMMISSION_RATE = 0.0015846
+const STAMP_RATE = 0.0005
+const TRANSFER_RATE = 0.0000108
 const MIN_FEE = 5
 
+function isShanghai(stockCode) {
+  return /^[569]/.test(stockCode || '')
+}
+
+function isFund(stockCode) {
+  return /^(5|15|16|18)/.test(stockCode || '')
+}
+
 /** 计算买入手续费 */
-export function calcBuyFee(amount) {
-  const fee = Math.round(amount * BROKER_RATE * 100) / 100
+export function calcBuyFee(amount, stockCode = '') {
+  if (!(amount > 0)) return 0
+  const rate = COMMISSION_RATE + (isShanghai(stockCode) ? TRANSFER_RATE : 0)
+  const fee = Math.round(amount * rate * 100) / 100
   return Math.max(fee, MIN_FEE)
 }
 
-/** 计算卖出手续费（含佣金+印花税+过户费） */
-export function calcSellFee(amount) {
-  const fee = Math.round(amount * SELL_RATE * 100) / 100
+/** 计算卖出手续费（佣金 + 印花税 + 沪市过户费） */
+export function calcSellFee(amount, stockCode = '') {
+  if (!(amount > 0)) return 0
+  const rate = COMMISSION_RATE
+    + (isFund(stockCode) ? 0 : STAMP_RATE)
+    + (isShanghai(stockCode) ? TRANSFER_RATE : 0)
+  const fee = Math.round(amount * rate * 100) / 100
   return Math.max(fee, MIN_FEE)
 }
 
 /** 买入：计算含手续费的实际金额和成本价 */
-export function calcBuyActual(amount) {
-  const fee = calcBuyFee(amount)
+export function calcBuyActual(amount, stockCode = '') {
+  const fee = calcBuyFee(amount, stockCode)
   return { fee, actualAmount: parseFloat((amount + fee).toFixed(2)) }
 }
 
 /** 卖出：计算扣除费用后的实际到账金额 */
-export function calcSellActual(amount) {
-  const fee = calcSellFee(amount)
+export function calcSellActual(amount, stockCode = '') {
+  const fee = calcSellFee(amount, stockCode)
   return { fee, actualAmount: parseFloat((amount - fee).toFixed(2)) }
 }
 
 /** @deprecated 保留兼容，默认按买入计算 */
-export function calcFee(amount) {
-  return calcBuyFee(amount)
+export function calcFee(amount, stockCode = '') {
+  return calcBuyFee(amount, stockCode)
 }
 
 /** @deprecated 保留兼容，默认按买入计算 */
-export function calcActualAmount(amount) {
-  return calcBuyActual(amount)
+export function calcActualAmount(amount, stockCode = '') {
+  return calcBuyActual(amount, stockCode)
 }
 
 /** 计算含手续费的每股成本 */
-export function calcCostPrice(amount, quantity) {
+export function calcCostPrice(amount, quantity, stockCode = '') {
   if (!quantity || quantity <= 0) return 0
-  const { actualAmount } = calcBuyActual(amount)
+  const { actualAmount } = calcBuyActual(amount, stockCode)
   return parseFloat((actualAmount / quantity).toFixed(3))
 }
