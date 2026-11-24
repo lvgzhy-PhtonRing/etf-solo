@@ -1,4 +1,4 @@
-// src/api/supabase.js — 单账户版
+﻿// src/api/supabase.js — 单账户版
 import { createClient } from '@supabase/supabase-js'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
@@ -204,16 +204,4 @@ export async function fetchPositionSnapshots(limit = 10, { strict = false } = {}
   return data.map(parseSnap).reverse()
 }
 
-/* ============================================================
- * 兼容层：页面迁移期间保留，Task 11 统一删除
- * ============================================================ */
 
-export async function fetchPools() { return [] }
-export async function savePoolAllocation() { /* no-op */ }
-export async function loadPoolAllocation() { return null }
-export async function fetchTransactionsByPoolStock(_poolId, stockCode) { return fetchTransactionsByStock(stockCode) }
-export async function verifyTransaction() { return true }
-export async function verifyPassword() { return false }
-export async function updatePassword() { return false }
-export async function logDelete() { /* no-op */ }
-export async function fetchAuditLogs() { return [] }

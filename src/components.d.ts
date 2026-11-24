@@ -18,7 +18,6 @@ declare module 'vue' {
     LoadingSkeleton: typeof import('./components/common/LoadingSkeleton.vue')['default']
     MainLayout: typeof import('./components/common/MainLayout.vue')['default']
     NavOverview: typeof import('./components/fund/NavOverview.vue')['default']
-    PoolSelector: typeof import('./components/common/PoolSelector.vue')['default']
     ProfitCard: typeof import('./components/dashboard/ProfitCard.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']

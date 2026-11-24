@@ -94,7 +94,6 @@ body {
 .title-accent--fall { background: var(--color-fall); }
 .title-accent--warn { background: var(--color-warn); }
 .title-accent--accent { background: var(--bg-accent); }
-.title-accent--gongyou { background: var(--pool-gongyou); }
 
 /* ===== Vant 组件暗色适配（修复白弹窗/白输入混深色页） ===== */
 .van-dialog {

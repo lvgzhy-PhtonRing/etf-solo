@@ -5,14 +5,6 @@
     </div>
     <div class="settings-section">
       <div class="settings-group">
-        <div class="group-title">安全</div>
-        <div class="settings-item" @click="showPwdDialog = true">
-          <div class="item-left"><span class="item-icon">🔑</span><span>修改密码</span></div>
-          <span class="item-arrow">→</span>
-        </div>
-      </div>
-
-      <div class="settings-group">
         <div class="group-title">自动备份</div>
         <div class="settings-item" @click="triggerAutoBackup">
           <div class="item-left"><span class="item-icon">⏰</span><span>立即备份</span></div>
@@ -39,25 +31,13 @@
           <span class="item-arrow">↑</span>
         </label>
         <input id="import-file" ref="fileInput" type="file" accept=".json,application/json,text/plain,text/json" style="display:none" @change="onFileSelected" />
-        <div class="settings-item" @click="showAuditLog = true">
-          <div class="item-left"><span class="item-icon">📝</span><span>操作日志</span></div>
-          <span class="item-arrow">→</span>
-        </div>
-      </div>
-
-      <div class="settings-group">
-        <div class="group-title">状态</div>
-        <div class="settings-item">
-          <div class="item-left"><span class="item-icon">📊</span><span>数据同步</span></div>
-          <span class="item-status sync-ok">已同步</span>
-        </div>
       </div>
 
       <div class="settings-group">
         <div class="group-title">关于</div>
         <div class="settings-item">
           <div class="item-left"><span class="item-icon">ℹ️</span><span>版本</span></div>
-          <span class="item-value">v4.11.0</span>
+          <span class="item-value">v1.0.0</span>
         </div>
         <div class="settings-item">
           <div class="item-left"><span class="item-icon">🏛️</span><span>数据存储</span></div>
@@ -66,31 +46,10 @@
       </div>
     </div>
 
-    <div class="logout-section">
-      <van-button round block plain hairline color="#ff4d6d" @click="doLogout">退出登录</van-button>
-    </div>
-
-    <!-- 密码弹窗 -->
-    <van-dialog v-model:show="showPwdDialog" title="修改密码" show-cancel-button @confirm="changePassword" class="pwd-dialog">
-      <div class="pwd-dialog-content">
-        <div class="pwd-current-email">当前账号：{{ currentEmail }}</div>
-        <div class="pwd-input-group">
-          <label class="pwd-label">新密码</label>
-          <input v-model="newPwd" type="password" class="pwd-input" maxlength="6" placeholder="••••••" inputmode="numeric" pattern="[0-9]*" />
-        </div>
-        <div class="pwd-input-group">
-          <label class="pwd-label">确认密码</label>
-          <input v-model="confirmPwd" type="password" class="pwd-input" maxlength="6" placeholder="••••••" inputmode="numeric" pattern="[0-9]*" />
-        </div>
-        <div class="pwd-error" v-if="pwdError">{{ pwdError }}</div>
-        <div class="pwd-hint">密码要求：6位数字</div>
-      </div>
-    </van-dialog>
-
     <!-- 导入确认弹窗 -->
     <van-dialog v-model:show="showImportConfirm" :title="exportedBeforeImport ? '确认导入' : '导入前请先导出'" :message="exportedBeforeImport ? '导出完成，确认导入？导入将覆盖现有数据。' : '导入将覆盖现有数据。请先导出当前数据到本地，确认导出成功后再导入。'" show-cancel-button @confirm="doImport">
       <div class="import-dialog-actions" v-if="!exportedBeforeImport">
-        <van-button size="small" plain color="#4d9fff" :loading="exporting" @click="exportThenConfirm">📤 先导出当前数据</van-button>
+        <van-button size="small" plain color="#d64545" :loading="exporting" @click="exportThenConfirm">📤 先导出当前数据</van-button>
       </div>
       <div class="import-dialog-actions" v-else>
         <span class="import-dialog-hint">✅ 已导出备份文件</span>
@@ -112,28 +71,7 @@
               <div class="backup-date">{{ formatDate(b.created_at) }}</div>
               <div class="backup-size">{{ formatSize(b.size) }}</div>
             </div>
-            <van-button size="small" plain color="#4d9fff" :loading="restoring === b.filename" @click="restoreBackup(b.filename)">恢复</van-button>
-          </div>
-        </div>
-      </div>
-    </van-popup>
-
-    <!-- 操作日志弹窗 -->
-    <van-popup v-model:show="showAuditLog" position="bottom" :style="{ height: '60%' }" round @opened="loadAuditLog">
-      <div class="backup-list-popup">
-        <div class="popup-header">
-          <span>操作日志（删除记录）</span>
-          <span class="popup-close" @click="showAuditLog = false">✕</span>
-        </div>
-        <div v-if="loadingAudit" class="popup-loading">加载中…</div>
-        <div v-else-if="!auditLogs.length" class="popup-empty">暂无删除记录</div>
-        <div v-else class="backup-list">
-          <div v-for="log in auditLogs" :key="log.id" class="audit-item">
-            <div class="audit-info">
-              <div class="audit-time">{{ formatDate(log.created_at) }}</div>
-              <div class="audit-user">{{ log.user_email }}</div>
-              <div class="audit-detail">{{ log.record_info }}</div>
-            </div>
+            <van-button size="small" plain color="#d64545" :loading="restoring === b.filename" @click="restoreBackup(b.filename)">恢复</van-button>
           </div>
         </div>
       </div>
@@ -143,20 +81,12 @@
 
 <script setup>
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
 import { supabase } from '@/api/supabase'
-import { fetchAuditLogs } from '@/api/supabase'
-import { isMockMode } from '@/api/mockDb'
 
-const props = defineProps({
+defineProps({
   inDrawer: { type: Boolean, default: false }
 })
-const emit = defineEmits(['close'])
 
-const router = useRouter()
-const showPwdDialog = ref(false)
-const newPwd = ref('')
-const confirmPwd = ref('')
 const exporting = ref(false)
 const showImportConfirm = ref(false)
 const exportedBeforeImport = ref(false)
@@ -165,33 +95,25 @@ const autoBacking = ref(false)
 const loadingBackups = ref(false)
 const backups = ref([])
 const restoring = ref(null)
-const showAuditLog = ref(false)
-const loadingAudit = ref(false)
-const auditLogs = ref([])
 let pendingImportData = null
 
-const TABLES = ['pools', 'holdings', 'transactions', 'capital_log', 'stock_cache', 'app_config']
+const TABLES = ['solo_holdings', 'solo_transactions', 'solo_capital_log', 'solo_stock_cache', 'solo_app_config']
 
 // ========== 导出 ==========
 async function exportData() {
   exporting.value = true
   try {
     const backup = { _export_at: new Date().toISOString(), _version: 1 }
-    if (isMockMode()) {
-      const { getTable } = await import('@/api/mockDb')
-      for (const table of TABLES) backup[table] = getTable(table)
-    } else {
-      for (const table of TABLES) {
-        const { data, error } = await supabase.from(table).select('*')
-        if (error) throw new Error(`${table}: ${error.message}`)
-        backup[table] = data || []
-      }
+    for (const table of TABLES) {
+      const { data, error } = await supabase.from(table).select('*')
+      if (error) throw new Error(`${table}: ${error.message}`)
+      backup[table] = data || []
     }
     const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `etf-backup-${new Date().toISOString().split('T')[0]}.json`
+    a.download = `stock-ledger-backup-${new Date().toISOString().split('T')[0]}.json`
     a.click()
     URL.revokeObjectURL(url)
     return true
@@ -205,7 +127,6 @@ async function exportData() {
 
 // ========== 自动备份（Edge Function） ==========
 async function triggerAutoBackup() {
-  if (isMockMode()) { alert('测试版不支持自动备份'); return }
   autoBacking.value = true
   try {
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
@@ -232,7 +153,6 @@ async function triggerAutoBackup() {
 }
 
 async function loadBackupList() {
-  if (isMockMode()) { backups.value = []; return }
   loadingBackups.value = true
   try {
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
@@ -253,21 +173,7 @@ async function loadBackupList() {
   }
 }
 
-async function loadAuditLog() {
-  if (isMockMode()) { auditLogs.value = []; return }
-  loadingAudit.value = true
-  try {
-    auditLogs.value = await fetchAuditLogs(50)
-  } catch (e) {
-    console.error('Load audit log error:', e)
-    auditLogs.value = []
-  } finally {
-    loadingAudit.value = false
-  }
-}
-
 async function restoreBackup(filename) {
-  if (isMockMode()) { alert('测试版不支持恢复'); return }
   restoring.value = filename
   try {
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
@@ -331,57 +237,34 @@ async function exportThenConfirm() {
   }
 }
 
+function rowsOf(table) {
+  const rows = pendingImportData[table] || pendingImportData[table.replace('solo_', '')] || []
+  return rows.map(({ id, ...clean }) => clean)
+}
+
 async function doImport() {
   if (!pendingImportData) return
   try {
-    if (isMockMode()) {
-      // 测试版（无 Supabase 凭据）：导入到本地 mock 数据库
-      const { loadBackup } = await import('@/api/mockDb')
-      loadBackup(pendingImportData)
-      alert('✅ 数据已导入本地测试库！请刷新页面查看')
-    } else {
-      // 删除顺序：先子表后父表；批量删除，任一失败立即中止（避免残留导致插入冲突）
-      const deleteOrder = [
-        ['capital_log', 'id', 0],
-        ['transactions', 'id', 0],
-        ['holdings', 'id', 0],
-        ['pools', 'id', 0],
-        ['stock_cache', 'stock_code', ''],
-        ['app_config', 'key', '']
-      ]
-      for (const [table, keyField, emptyVal] of deleteOrder) {
-        const { error } = await supabase.from(table).delete().neq(keyField, emptyVal)
-        if (error) throw new Error(`${table} 清空失败：${error.message}`)
-      }
-      // 批量插入 pools：移除 id 由数据库自增，一次性返回全部新 id 建立映射
-      const poolIdMap = {}
-      const poolRows = (pendingImportData.pools || []).map(({ id, updated_at, ...clean }) => clean)
-      if (poolRows.length) {
-        const { data, error } = await supabase.from('pools').insert(poolRows).select('id')
-        if (error) throw new Error(`pools 插入失败：${error.message}`)
-        pendingImportData.pools.forEach((p, i) => { poolIdMap[p.id] = data[i].id })
-      }
-      // 批量插入子表：移除 id，pool_id 映射为新池 id
-      for (const table of ['holdings', 'transactions', 'capital_log']) {
-        const rows = (pendingImportData[table] || []).map(({ id, updated_at, ...clean }) => {
-          if (clean.pool_id != null && poolIdMap[clean.pool_id]) clean.pool_id = poolIdMap[clean.pool_id]
-          return clean
-        })
-        if (rows.length) {
-          const { error } = await supabase.from(table).insert(rows)
-          if (error) throw new Error(`${table} 插入失败：${error.message}`)
-        }
-      }
-      // 批量插入无自增 id 表：stock_cache / app_config
-      for (const table of ['stock_cache', 'app_config']) {
-        const rows = pendingImportData[table] || []
-        if (rows.length) {
-          const { error } = await supabase.from(table).insert(rows)
-          if (error) throw new Error(`${table} 插入失败：${error.message}`)
-        }
-      }
-      alert('✅ 数据导入成功！请刷新页面查看')
+    // 清空顺序：先流水/交易，后持仓与缓存
+    const deleteOrder = [
+      ['solo_capital_log', 'id', 0],
+      ['solo_transactions', 'id', 0],
+      ['solo_holdings', 'id', 0],
+      ['solo_stock_cache', 'stock_code', ''],
+      ['solo_app_config', 'key', '']
+    ]
+    for (const [table, keyField, emptyVal] of deleteOrder) {
+      const { error } = await supabase.from(table).delete().neq(keyField, emptyVal)
+      if (error) throw new Error(`${table} 清空失败：${error.message}`)
     }
+    for (const table of ['solo_holdings', 'solo_transactions', 'solo_capital_log', 'solo_stock_cache', 'solo_app_config']) {
+      const rows = rowsOf(table)
+      if (rows.length) {
+        const { error } = await supabase.from(table).insert(rows)
+        if (error) throw new Error(`${table} 插入失败：${error.message}`)
+      }
+    }
+    alert('✅ 数据导入成功！请刷新页面查看')
   } catch (e) {
     console.error('Import error:', e)
     alert('❌ 导入失败：' + e.message)
@@ -389,34 +272,6 @@ async function doImport() {
     pendingImportData = null
     showImportConfirm.value = false
   }
-}
-
-// ========== 密码 ==========
-async function changePassword() {
-  try {
-    const { error } = await supabase.auth.updateUser({
-      password: newPwd.value
-    })
-
-    if (error) {
-      alert('修改失败：' + error.message)
-      return false
-    }
-
-    showPwdDialog.value = false
-    oldPwd.value = ''
-    newPwd.value = ''
-    confirmPwd.value = ''
-    return true
-  } catch (e) {
-    console.error('Change password error:', e)
-    return false
-  }
-}
-
-async function doLogout() {
-  await supabase.auth.signOut()
-  router.replace({ name: 'login' })
 }
 </script>
 
@@ -430,20 +285,10 @@ async function doLogout() {
 .item-arrow { color: var(--text-muted); font-size: 14px; }
 .item-value { color: var(--text-secondary); font-size: 13px; }
 .item-status { font-size: 12px; padding: 2px 8px; border-radius: 4px; }
-.item-status.sync-ok { background: rgba(0,240,168,0.12); color: var(--color-fall); }
-.logout-section { padding: 24px 0; }
+.item-status.sync-ok { background: rgba(46,139,87,0.10); color: var(--color-fall); }
+.import-dialog-actions { padding: 0 16px 12px; text-align: center; }
+.import-dialog-hint { font-size: 13px; color: var(--color-fall); }
 .in-drawer { padding: 56px 0 0; }
-.in-drawer .logout-section { padding: 12px 0; }
-.pwd-dialog { background: var(--bg-card); border-radius: 16px; }
-.pwd-dialog-content { padding: 8px 4px; }
-.pwd-current-email { font-size: 13px; color: var(--text-secondary); margin-bottom: 16px; padding: 8px 12px; background: rgba(255,255,255,0.05); border-radius: 8px; }
-.pwd-input-group { margin-bottom: 12px; }
-.pwd-label { display: block; font-size: 13px; color: var(--text-secondary); margin-bottom: 6px; }
-.pwd-input { width: 100%; padding: 14px 16px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 10px; color: #fff; font-size: 24px; letter-spacing: 8px; font-family: inherit; outline: none; transition: border-color 0.2s; box-sizing: border-box; }
-.pwd-input:focus { border-color: var(--bg-accent); }
-.pwd-input::placeholder { color: rgba(255,255,255,0.3); letter-spacing: 8px; }
-.pwd-error { color: var(--color-rise); font-size: 12px; margin-bottom: 8px; padding-left: 4px; }
-.pwd-hint { font-size: 12px; color: var(--text-muted); margin-top: 8px; padding-left: 4px; }
 .backup-list-popup { padding: 16px; display: flex; flex-direction: column; height: 100%; }
 .popup-header { display: flex; justify-content: space-between; align-items: center; font-size: 15px; font-weight: 600; margin-bottom: 12px; }
 .popup-close { cursor: pointer; color: var(--text-muted); font-size: 16px; }
@@ -453,9 +298,4 @@ async function doLogout() {
 .backup-info { display: flex; flex-direction: column; gap: 2px; }
 .backup-date { font-size: 13px; font-weight: 600; }
 .backup-size { font-size: 11px; color: var(--text-muted); }
-.audit-item { padding: 12px; background: var(--bg-card); border-radius: var(--radius-md); }
-.audit-info { display: flex; flex-direction: column; gap: 2px; }
-.audit-time { font-size: 13px; font-weight: 600; }
-.audit-user { font-size: 11px; color: var(--text-secondary); }
-.audit-detail { font-size: 12px; color: var(--text-muted); margin-top: 4px; padding: 6px 8px; background: rgba(255,77,109,0.08); border-radius: 6px; border-left: 2px solid var(--color-rise); }
 </style>
