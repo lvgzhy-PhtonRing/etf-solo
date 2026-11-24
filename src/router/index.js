@@ -1,45 +1,67 @@
 // src/router/index.js
 import { createRouter, createWebHashHistory } from 'vue-router'
+import { legacyRedirect } from '@/utils/nav'
+
+const LEGACY_PATHS = ['dashboard', 'positions', 'netvalue', 'trend', 'trends', 'fund']
+
+const legacyRoutes = LEGACY_PATHS.map(p => ({
+  path: `/${p}`,
+  redirect: () => legacyRedirect(`/${p}`)
+}))
 
 const routes = [
-  { path: '/', redirect: '/dashboard' },
+  { path: '/', redirect: '/asset/overview' },
   {
     path: '/',
     component: () => import('@/components/common/MainLayout.vue'),
     children: [
+      // ===== 资产（my-assets）=====
       {
-        path: 'dashboard',
-        name: 'dashboard',
+        path: 'asset/overview',
+        name: 'asset-overview',
+        component: () => import('@/pages/asset/AssetPlaceholderPage.vue'),
+        meta: { title: '资产概览', en: 'Assets Overview' }
+      },
+      {
+        path: 'asset/ledger',
+        name: 'asset-ledger',
+        component: () => import('@/pages/asset/AssetPlaceholderPage.vue'),
+        meta: { title: '收支账本', en: 'Ledger' }
+      },
+      {
+        path: 'asset/stats',
+        name: 'asset-stats',
+        component: () => import('@/pages/asset/AssetPlaceholderPage.vue'),
+        meta: { title: '统计报表', en: 'Statistics' }
+      },
+      {
+        path: 'asset/poker',
+        name: 'asset-poker',
+        component: () => import('@/pages/asset/AssetPlaceholderPage.vue'),
+        meta: { title: '德州战绩', en: 'Poker' }
+      },
+      // ===== 股票（Solo 版）=====
+      {
+        path: 'stock/holdings',
+        name: 'stock-holdings',
         component: () => import('@/pages/DashboardPage.vue'),
         meta: { title: '持仓' }
       },
       {
-        path: 'positions',
-        name: 'positions',
+        path: 'stock/positions',
+        name: 'stock-positions',
         component: () => import('@/pages/PositionsPage.vue'),
         meta: { title: '仓位' }
       },
       {
-        path: 'trends',
-        name: 'trends',
-        component: () => import('@/pages/TrendsPage.vue'),
-        meta: { title: '盈亏榜单' }
-      },
-      {
-        path: 'netvalue',
-        name: 'netvalue',
-        component: () => import('@/pages/NetValuePage.vue'),
-        meta: { title: '净值走势' }
-      },
-      {
-        path: 'trend',
-        name: 'trend',
+        path: 'stock/trends',
+        name: 'stock-trends',
         component: () => import('@/pages/TrendPage.vue'),
         meta: { title: '趋势' }
       },
       {
-        path: 'fund',
-        name: 'fund',
+        path: 'stock/capital',
+        name: 'stock-capital',
         component: () => import('@/pages/FundPage.vue'),
         meta: { title: '资本' }
       },
@@ -51,7 +73,8 @@ const routes = [
       }
     ]
   },
-  { path: '/:pathMatch(.*)*', redirect: '/dashboard' }
+  ...legacyRoutes,
+  { path: '/:pathMatch(.*)*', redirect: '/asset/overview' }
 ]
 
 const router = createRouter({

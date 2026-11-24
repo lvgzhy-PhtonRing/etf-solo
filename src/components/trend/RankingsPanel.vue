@@ -1,14 +1,8 @@
 <template>
-  <div class="page trends-page">
-    <div class="page-header">
-      <span class="page-title">盈亏榜单<span class="title-en">Profit Ranking</span></span>
-    </div>
-    <LoadErrorTip v-if="loadError" :message="loadError" @retry="retryLoad" />
-
+  <div class="rankings-panel">
     <LoadingSkeleton v-if="loading" :count="3" />
-
     <template v-else>
-      <!-- 赚最多（默认前3，可展开全部） -->
+      <!-- 赚最多 -->
       <div class="section-card rank-card edge-rise">
         <div class="section-title">
           <span class="title-accent title-accent--rise"></span>
@@ -29,7 +23,7 @@
         </button>
       </div>
 
-      <!-- 亏最多（默认前3，可展开全部） -->
+      <!-- 亏最多 -->
       <div class="section-card rank-card edge-fall">
         <div class="section-title">
           <span class="title-accent title-accent--fall"></span>
@@ -112,29 +106,28 @@
           </div>
         </div>
       </van-popup>
-
     </template>
   </div>
 </template>
 
 <script setup>
-import LoadErrorTip from '@/components/common/LoadErrorTip.vue'
 import { ref, computed, onMounted } from 'vue'
 import { useHoldingStore } from '@/stores/holdings'
 import { usePriceStore } from '@/stores/prices'
 import { fetchAllTransactions } from '@/api/supabase'
 import { computeClearedRankings, computeHoldingProfits } from '@/utils/rankings'
 import { formatMoney } from '@/utils/formatters'
-const loadError = computed(() => holdingStore.error || priceStore.error || '')
-function retryLoad() { location.reload() }
 
-
-const loading = ref(true)
+const props = defineProps({
+  // 父页面已取过交易时传入，避免重复请求
+  transactions: { type: Array, default: null }
+})
 
 const holdingStore = useHoldingStore()
 const priceStore = usePriceStore()
 
-const transactions = ref([])
+const loading = ref(true)
+const transactions = ref(props.transactions || [])
 const gainExpanded = ref(false)
 const lossExpanded = ref(false)
 const holdingExpanded = ref(false)
@@ -180,14 +173,14 @@ function openStockDetail(item) {
 
 onMounted(async () => {
   try {
-    await Promise.all([
-      holdingStore.loadHoldings(),
-      fetchAllTransactions().then(rows => { transactions.value = rows })
-    ])
+    if (!props.transactions) {
+      transactions.value = await fetchAllTransactions()
+    }
+    if (!holdingStore.holdings.length) await holdingStore.loadHoldings()
     const codes = holdingStore.stockCodes
     if (codes.length) await priceStore.loadPrices(codes)
   } catch (e) {
-    console.error('Trends load error:', e)
+    console.error('Rankings load error:', e)
   } finally {
     loading.value = false
   }
@@ -195,9 +188,6 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.page-header { display: flex; align-items: baseline; justify-content: space-between; padding: 4px 2px 12px; }
-.page-title { font-size: 20px; font-weight: 700; }
-.title-en { font-size: 11px; color: var(--text-muted); margin-left: 8px; font-weight: 400; }
 .section-card { padding: 14px 16px; margin-bottom: 10px; }
 .section-title { display: flex; align-items: baseline; gap: 6px; font-size: 13px; font-weight: 600; padding-bottom: 10px; }
 .title-accent { width: 3px; height: 13px; border-radius: 2px; align-self: center; }

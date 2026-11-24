@@ -113,11 +113,15 @@
           </div>
         </div>
       </div>
+      <!-- 盈亏榜单（原榜单页合并于此） -->
+      <RankingsPanel />
+
     </template>
   </div>
 </template>
 
 <script setup>
+import RankingsPanel from '@/components/trend/RankingsPanel.vue'
 import { ref, computed, onMounted, nextTick } from 'vue'
 import { useHoldingStore } from '@/stores/holdings'
 import { usePriceStore } from '@/stores/prices'

@@ -69,12 +69,22 @@
         </template>
       </div>
 
+      <!-- å‡€å€¼èµ°åŠ¿ï¼ˆåŽŸå‡€å€¼é¡µåˆå¹¶äºŽæ­¤ï¼‰ -->
+      <div class="section-card nav-hero">
+        <NavOverview />
+      </div>
+      <div class="section-card edge-accent">
+        <SoloNavChart />
+      </div>
+
     </template>
   </div>
 </template>
 
 <script setup>
 import LoadErrorTip from '@/components/common/LoadErrorTip.vue'
+import NavOverview from '@/components/fund/NavOverview.vue'
+import SoloNavChart from '@/components/fund/SoloNavChart.vue'
 import { ref, computed, onMounted } from 'vue'
 import { useHoldingStore } from '@/stores/holdings'
 import { usePriceStore } from '@/stores/prices'
@@ -229,4 +239,14 @@ onMounted(async () => {
 .stock-sum-label { font-size: 12px; color: var(--text-secondary); }
 .stock-sum-value { font-size: 14px; font-weight: 700; }
 .stock-sum-hint { font-size: 11px; color: var(--text-muted); }
+</style>
+
+<style scoped>
+/* ¾»Öµ¿¨£ºÓëÊ×Ò³Ê×¿¨Í¬¿î½¥±äµ× */
+.nav-hero {
+  padding: 12px 16px;
+  background: linear-gradient(150deg, rgba(191,107,63,.08), rgba(214,69,69,.05) 60%, #ffffff);
+  border: 1px solid var(--border-soft);
+  box-shadow: var(--shadow-card);
+}
 </style>

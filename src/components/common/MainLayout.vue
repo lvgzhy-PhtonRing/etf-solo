@@ -1,7 +1,9 @@
 <!-- src/components/common/MainLayout.vue -->
 <template>
   <div class="main-layout">
-    <div class="top-bar">
+    <div class="nav-header">
+      <span class="nav-spacer"></span>
+      <TopSegment />
       <button class="menu-btn" @click="showDrawer = true">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
           <line x1="3" y1="6" x2="21" y2="6"/>
@@ -13,22 +15,13 @@
     <div class="main-content">
       <router-view />
     </div>
-    <van-tabbar v-model="active" :border="false">
-      <van-tabbar-item icon="diamond-o" @click="go('dashboard')">持仓</van-tabbar-item>
-      <van-tabbar-item @click="go('positions')">
-        <template #icon>
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
-            <circle cx="6.5" cy="6.5" r="2.5" />
-            <circle cx="17.5" cy="17.5" r="2.5" />
-            <line x1="19" y1="5" x2="5" y2="19" />
-          </svg>
-        </template>
-        仓位
-      </van-tabbar-item>
-      <van-tabbar-item icon="chart-trending-o" @click="go('netvalue')">净值</van-tabbar-item>
-      <van-tabbar-item icon="clock-o" @click="go('trend')">趋势</van-tabbar-item>
-      <van-tabbar-item icon="fire-o" @click="go('trends')">榜单</van-tabbar-item>
-      <van-tabbar-item icon="gold-coin-o" @click="go('fund')">资本</van-tabbar-item>
+    <van-tabbar :model-value="active" :border="false">
+      <van-tabbar-item
+        v-for="tab in tabs"
+        :key="tab.name"
+        :icon="ICONS[tab.name]"
+        @click="go(tab.path)"
+      >{{ tab.label }}</van-tabbar-item>
     </van-tabbar>
 
     <van-popup
@@ -47,9 +40,11 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import SettingsPage from '@/pages/SettingsPage.vue'
+import TopSegment from '@/components/common/TopSegment.vue'
+import { sectionOf, tabsOf, tabIndex } from '@/utils/nav'
 import { ensurePeriodicSnapshot } from '@/utils/positionSnapshot'
 import { refreshHistoricalSnapshots } from '@/utils/historicalSnapshots'
 
@@ -62,18 +57,24 @@ onMounted(() => {
   refreshHistoricalSnapshots().catch(e => console.warn('历史快照暂未补齐：', e))
 })
 
-const routeMap = { dashboard: 0, positions: 1, netvalue: 2, trend: 3, trends: 4, fund: 5 }
-const active = ref(routeMap[route.name] || 0)
-
-function go(name) {
-  router.push({ name })
+const ICONS = {
+  'asset-overview': 'balance-o',
+  'asset-ledger': 'orders-o',
+  'asset-stats': 'bar-chart-o',
+  'asset-poker': 'fire-o',
+  'stock-holdings': 'apps-o',
+  'stock-positions': 'pie-chart-o',
+  'stock-trends': 'chart-trending-o',
+  'stock-capital': 'gold-coin-o'
 }
 
-watch(() => route.name, (name) => {
-  if (name && routeMap[name] !== undefined) {
-    active.value = routeMap[name]
-  }
-})
+const section = computed(() => sectionOf(route.path))
+const tabs = computed(() => tabsOf(section.value))
+const active = computed(() => Math.max(0, tabIndex(section.value, route.path)))
+
+function go(path) {
+  if (path !== route.path) router.push(path)
+}
 </script>
 
 <style scoped>
@@ -88,11 +89,17 @@ watch(() => route.name, (name) => {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }
-.top-bar {
-  position: absolute;
-  top: 8px;
-  right: 16px;
-  z-index: 10;
+.nav-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 16px 4px;
+  flex-shrink: 0;
+}
+.nav-spacer {
+  width: 36px;
+  flex-shrink: 0;
 }
 .menu-btn {
   width: 36px;
