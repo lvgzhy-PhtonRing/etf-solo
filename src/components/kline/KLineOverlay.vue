@@ -25,9 +25,9 @@
       </div>
     </div>
     <div class="kline-legend">
-      <span class="lg-item"><span class="lg-badge" style="background:#ff4d6d">B</span>买入</span>
-      <span class="lg-item"><span class="lg-badge" style="background:#00f0a8">S</span>卖出</span>
-      <span class="lg-item"><span class="lg-badge" style="background:#ffd23f">T</span>当日买卖</span>
+      <span class="lg-item"><span class="lg-badge" style="background:#d64545">B</span>买入</span>
+      <span class="lg-item"><span class="lg-badge" style="background:#2e8b57">S</span>卖出</span>
+      <span class="lg-item"><span class="lg-badge" style="background:#c98a2c">T</span>当日买卖</span>
     </div>
     <div ref="chartRef" class="kline-chart"></div>
     <div v-if="loading" class="kline-mask">
@@ -58,9 +58,9 @@ const emit = defineEmits(['close'])
 
 // 交易标记：B=买入(画在K线下方) S=卖出(上方) T=当日既有买又有卖(上方)
 const TRADE_MARKS = {
-  B: { label: 'B', color: '#ff4d6d', dir: 'down' },
-  S: { label: 'S', color: '#00f0a8', dir: 'up' },
-  T: { label: 'T', color: '#ffd23f', dir: 'up' }
+  B: { label: 'B', color: '#d64545', dir: 'down' },
+  S: { label: 'S', color: '#2e8b57', dir: 'up' },
+  T: { label: 'T', color: '#c98a2c', dir: 'up' }
 }
 
 // 自定义 overlay：色块字母 + 下方/上方的操作日期
@@ -70,7 +70,7 @@ registerOverlay({
   totalStep: 1,
   createPointFigures({ chart, overlay, coordinates }) {
     const meta = overlay.extendData || {}
-    const color = meta.color || '#b18cff'
+    const color = meta.color || '#bf6b3f'
     const cx = coordinates[0].x
     const cy = coordinates[0].y
     const oy = meta.dir === 'up' ? -1 : 1
@@ -102,7 +102,7 @@ registerOverlay({
       {
         type: 'text',
         attrs: { x: cx, y: blockY, text: meta.label || '', align: 'center', baseline: 'middle' },
-        styles: { color: '#12102a', size: fs, weight: 'bold', backgroundColor: 'transparent', borderSize: 0, borderColor: 'transparent' },
+        styles: { color: '#fff', size: fs, weight: 'bold', backgroundColor: 'transparent', borderSize: 0, borderColor: 'transparent' },
         ignoreEvent: true
       },
       {
@@ -118,41 +118,41 @@ registerOverlay({
 const STYLES = {
   grid: {
     show: true,
-    horizontal: { show: true, size: 1, color: 'rgba(255,255,255,0.06)', style: 'dashed', dashedValue: [2, 2] },
-    vertical: { show: true, size: 1, color: 'rgba(255,255,255,0.04)', style: 'dashed', dashedValue: [2, 2] }
+    horizontal: { show: true, size: 1, color: 'rgba(46,42,36,0.08)', style: 'dashed', dashedValue: [2, 2] },
+    vertical: { show: true, size: 1, color: 'rgba(46,42,36,0.05)', style: 'dashed', dashedValue: [2, 2] }
   },
   candle: {
     type: 'candle_solid',
     bar: {
       compareRule: 'previous_close',
-      upColor: '#ff4d6d',
-      downColor: '#00f0a8',
-      noChangeColor: '#6f6b8f',
-      upBorderColor: '#ff4d6d',
-      downBorderColor: '#00f0a8',
-      noChangeBorderColor: '#6f6b8f',
-      upWickColor: '#ff4d6d',
-      downWickColor: '#00f0a8',
-      noChangeWickColor: '#6f6b8f'
+      upColor: '#d64545',
+      downColor: '#2e8b57',
+      noChangeColor: '#a89f91',
+      upBorderColor: '#d64545',
+      downBorderColor: '#2e8b57',
+      noChangeBorderColor: '#a89f91',
+      upWickColor: '#d64545',
+      downWickColor: '#2e8b57',
+      noChangeWickColor: '#a89f91'
     },
     priceMark: {
       show: true,
-      high: { show: true, color: '#a7a3c8', textSize: 11, textOffset: 5 },
-      low: { show: true, color: '#a7a3c8', textSize: 11, textOffset: 5 },
+      high: { show: true, color: '#7a7266', textSize: 11, textOffset: 5 },
+      low: { show: true, color: '#7a7266', textSize: 11, textOffset: 5 },
       last: {
         show: true,
         compareRule: 'previous_close',
-        upColor: '#ff4d6d',
-        downColor: '#00f0a8',
-        noChangeColor: '#a7a3c8',
+        upColor: '#d64545',
+        downColor: '#2e8b57',
+        noChangeColor: '#7a7266',
         line: { show: false, size: 1, style: 'dashed', dashedValue: [4, 4] },
         text: {
           show: true,
           style: 'fill',
-          color: '#f4f2ff',
+          color: '#fff',
           size: 11,
           weight: 'bold',
-          borderColor: '#6f4dff',
+          borderColor: '#bf6b3f',
           borderRadius: 4,
           paddingLeft: 6,
           paddingRight: 6,
@@ -165,27 +165,27 @@ const STYLES = {
     tooltip: {
       showRule: 'always',
       showType: 'standard',
-      title: { show: true, color: '#a7a3c8', size: 11, marginLeft: 0, marginTop: 0, marginRight: 0, marginBottom: 0 },
-      legend: { color: '#a7a3c8', size: 11, marginLeft: 0, marginRight: 8, marginTop: 2, marginBottom: 2 }
+      title: { show: true, color: '#7a7266', size: 11, marginLeft: 0, marginTop: 0, marginRight: 0, marginBottom: 0 },
+      legend: { color: '#7a7266', size: 11, marginLeft: 0, marginRight: 8, marginTop: 2, marginBottom: 2 }
     }
   },
   indicator: {
     bars: [{
-      upColor: 'rgba(255,77,109,0.7)',
-      downColor: 'rgba(0,240,168,0.7)',
-      noChangeColor: 'rgba(111,107,143,0.7)'
+      upColor: 'rgba(214,69,69,0.7)',
+      downColor: 'rgba(46,139,87,0.7)',
+      noChangeColor: 'rgba(168,159,145,0.7)'
     }],
     lines: [
-      { style: 'solid', size: 1, color: '#ffd23f', smooth: false },
-      { style: 'solid', size: 1, color: '#b18cff', smooth: false },
+      { style: 'solid', size: 1, color: '#c98a2c', smooth: false },
+      { style: 'solid', size: 1, color: '#7a5bd6', smooth: false },
       { style: 'solid', size: 1, color: '#4d9fff', smooth: false },
       { style: 'solid', size: 1, color: '#ff7a45', smooth: false }
     ],
     tooltip: {
       showRule: 'always',
       showType: 'standard',
-      title: { show: true, color: '#a7a3c8', size: 11, showName: true, showParams: true, marginLeft: 0, marginTop: 0, marginRight: 0, marginBottom: 0 },
-      legend: { color: '#a7a3c8', size: 11, marginLeft: 0, marginRight: 8, marginTop: 2, marginBottom: 2 }
+      title: { show: true, color: '#7a7266', size: 11, showName: true, showParams: true, marginLeft: 0, marginTop: 0, marginRight: 0, marginBottom: 0 },
+      legend: { color: '#7a7266', size: 11, marginLeft: 0, marginRight: 8, marginTop: 2, marginBottom: 2 }
     }
   },
   xAxis: {
@@ -193,33 +193,33 @@ const STYLES = {
     size: 22,
     axisLine: { show: false },
     tickLine: { show: false },
-    tickText: { show: true, color: '#a7a3c8', size: 11, marginStart: 6, marginEnd: 6 }
+    tickText: { show: true, color: '#7a7266', size: 11, marginStart: 6, marginEnd: 6 }
   },
   yAxis: {
     show: true,
     size: 50,
     axisLine: { show: false },
     tickLine: { show: false },
-    tickText: { show: true, color: '#a7a3c8', size: 11, marginStart: 6, marginEnd: 6 }
+    tickText: { show: true, color: '#7a7266', size: 11, marginStart: 6, marginEnd: 6 }
   },
   separator: {
     size: 1,
-    color: 'rgba(255,255,255,0.08)',
+    color: 'rgba(120,100,75,0.14)',
     fill: true
   },
   crosshair: {
     show: true,
     horizontal: {
       show: true,
-      line: { show: true, size: 1, color: 'rgba(177,140,255,0.45)', style: 'dashed', dashedValue: [4, 4] },
+      line: { show: true, size: 1, color: 'rgba(191,107,63,0.45)', style: 'dashed', dashedValue: [4, 4] },
       text: {
         show: true,
         style: 'fill',
-        color: '#1e1b3a',
+        color: '#fff',
         size: 11,
         weight: 'bold',
-        backgroundColor: '#b18cff',
-        borderColor: '#b18cff',
+        backgroundColor: '#bf6b3f',
+        borderColor: '#bf6b3f',
         borderRadius: 4,
         paddingLeft: 6,
         paddingRight: 6,
@@ -229,15 +229,15 @@ const STYLES = {
     },
     vertical: {
       show: true,
-      line: { show: true, size: 1, color: 'rgba(177,140,255,0.45)', style: 'dashed', dashedValue: [4, 4] },
+      line: { show: true, size: 1, color: 'rgba(191,107,63,0.45)', style: 'dashed', dashedValue: [4, 4] },
       text: {
         show: true,
         style: 'fill',
-        color: '#1e1b3a',
+        color: '#fff',
         size: 11,
         weight: 'bold',
-        backgroundColor: '#b18cff',
-        borderColor: '#b18cff',
+        backgroundColor: '#bf6b3f',
+        borderColor: '#bf6b3f',
         borderRadius: 4,
         paddingLeft: 6,
         paddingRight: 6,
@@ -267,7 +267,7 @@ const priceLabel = computed(() => currentPrice.value > 0 ? currentPrice.value.to
 const priceBg = computed(() => {
   if (changePct.value > 0) return 'var(--color-rise)'
   if (changePct.value < 0) return 'var(--color-fall)'
-  return 'rgba(167, 163, 200, 0.28)'
+  return '#a89f91'
 })
 
 // 定时实时刷新现价（绕过行情缓存）
@@ -374,10 +374,10 @@ function createPriceLine(price) {
     paneId: 'candle_pane',
     points: [{ dataIndex: 0, value: price }],
     styles: {
-      line: { style: 'dashed', size: 1, color: '#b18cff', dashedValue: [8, 4] },
+      line: { style: 'dashed', size: 1, color: '#bf6b3f', dashedValue: [8, 4] },
       text: {
         style: 'fill',
-        color: '#12102a',
+        color: '#fff',
         size: 11,
         weight: 'bold',
         borderRadius: 4,
@@ -385,7 +385,7 @@ function createPriceLine(price) {
         paddingRight: 5,
         paddingTop: 2,
         paddingBottom: 2,
-        backgroundColor: '#b18cff'
+        backgroundColor: '#bf6b3f'
       }
     }
   })
@@ -469,7 +469,7 @@ onBeforeUnmount(() => {
   position: fixed;
   inset: 0;
   z-index: 10000;
-  background: #12102a;
+  background: var(--bg-primary);
   display: flex;
   flex-direction: column;
 }
@@ -479,8 +479,8 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 12px;
   padding: 8px 12px;
-  background: rgba(30, 27, 58, 0.96);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border-soft);
   flex-shrink: 0;
 }
 
@@ -490,16 +490,16 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--bg-hover);
   border: none;
   border-radius: 8px;
-  color: #f4f2ff;
+  color: var(--text-primary);
   cursor: pointer;
   flex-shrink: 0;
 }
 
 .kline-close:active {
-  background: rgba(255, 255, 255, 0.16);
+  background: var(--bg-subtle);
 }
 
 .kline-title {
@@ -513,12 +513,12 @@ onBeforeUnmount(() => {
 .kline-name {
   font-size: 15px;
   font-weight: 600;
-  color: #f4f2ff;
+  color: var(--text-primary);
 }
 
 .kline-code {
   font-size: 12px;
-  color: #a7a3c8;
+  color: var(--text-secondary);
   font-family: var(--font-number);
 }
 
@@ -528,7 +528,7 @@ onBeforeUnmount(() => {
   color: #fff;
   font-family: var(--font-number);
   padding: 4px 10px;
-  background: linear-gradient(135deg, #6f4dff, #9d7bff);
+  background: var(--bg-accent);
   border: none;
   border-radius: 12px;
   white-space: nowrap;
@@ -550,7 +550,7 @@ onBeforeUnmount(() => {
 .kline-tabs {
   display: flex;
   gap: 2px;
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--bg-hover);
   padding: 3px;
   border-radius: 8px;
   flex-shrink: 0;
@@ -560,7 +560,7 @@ onBeforeUnmount(() => {
   padding: 5px 14px;
   background: transparent;
   border: none;
-  color: #a7a3c8;
+  color: var(--text-secondary);
   font-size: 13px;
   border-radius: 6px;
   cursor: pointer;
@@ -568,7 +568,7 @@ onBeforeUnmount(() => {
 }
 
 .kline-tab.active {
-  background: #6f4dff;
+  background: var(--bg-accent);
   color: #fff;
 }
 
@@ -578,7 +578,7 @@ onBeforeUnmount(() => {
   align-items: center;
   padding: 6px 12px;
   font-size: 11px;
-  color: #a7a3c8;
+  color: var(--text-secondary);
   flex-shrink: 0;
 }
 
@@ -597,7 +597,7 @@ onBeforeUnmount(() => {
   border-radius: 3px;
   font-size: 9px;
   font-weight: 700;
-  color: #12102a;
+  color: #fff;
   line-height: 1;
 }
 
@@ -613,16 +613,16 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(18, 16, 42, 0.85);
+  background: rgba(250, 247, 242, 0.85);
   z-index: 2;
 }
 
 .kline-mask-inner {
-  color: #a7a3c8;
+  color: var(--text-secondary);
   font-size: 14px;
   padding: 12px 22px;
-  background: #1e1b3a;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
   border-radius: 10px;
 }
 </style>
