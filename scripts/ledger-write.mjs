@@ -9,7 +9,8 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const envText = fs.readFileSync(path.join(root, 'src/.env'), 'utf8')
+const envPath = [path.join(root, '.env'), path.join(root, 'src/.env')].find(p => fs.existsSync(p))
+const envText = fs.readFileSync(envPath, 'utf8')
 const url = envText.match(/VITE_SUPABASE_URL=(.+)/)?.[1].trim()
 const key = envText.match(/VITE_SUPABASE_ANON_KEY=(.+)/)?.[1].trim()
 if (!url || !key) {

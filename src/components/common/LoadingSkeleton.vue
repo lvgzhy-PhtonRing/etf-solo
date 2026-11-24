@@ -32,7 +32,7 @@ defineProps({
 }
 .skeleton-line {
   height: 14px;
-  background: rgba(255,255,255,0.06);
+  background: var(--bg-subtle);
   border-radius: 4px;
   animation: pulse 1.5s ease-in-out infinite;
 }

@@ -3,7 +3,7 @@
     <svg :width="size" :height="size" :viewBox="`0 0 ${size} ${size}`">
       <circle
         :cx="center" :cy="center" :r="radius"
-        fill="none" stroke="rgba(255,255,255,0.06)"
+        fill="none" stroke="var(--bg-subtle)"
         :stroke-width="strokeWidth"
       />
       <circle
@@ -19,10 +19,10 @@
         :transform="`rotate(-90 ${center} ${center})`"
         class="donut-segment"
       />
-      <text :x="center" :y="center - 8" text-anchor="middle" fill="#fff" font-size="32" font-weight="700" font-family="var(--font-number)">
+      <text :x="center" :y="center - 8" text-anchor="middle" fill="var(--text-primary)" font-size="32" font-weight="700" font-family="var(--font-number)">
         {{ totalPercent.toFixed(1) }}%
       </text>
-      <text :x="center" :y="center + 16" text-anchor="middle" fill="#a7a3c8" font-size="13">
+      <text :x="center" :y="center + 16" text-anchor="middle" fill="var(--text-secondary)" font-size="13">
         总仓位
       </text>
     </svg>
