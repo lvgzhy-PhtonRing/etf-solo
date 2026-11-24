@@ -21,7 +21,16 @@
         :key="tab.name"
         :icon="ICONS[tab.name]"
         @click="go(tab.path)"
-      >{{ tab.label }}</van-tabbar-item>
+      >
+        <template v-if="tab.name === 'stock-positions'" #icon>
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+            <circle cx="6.5" cy="6.5" r="2.5" />
+            <circle cx="17.5" cy="17.5" r="2.5" />
+            <line x1="19" y1="5" x2="5" y2="19" />
+          </svg>
+        </template>
+        {{ tab.label }}
+      </van-tabbar-item>
     </van-tabbar>
 
     <van-popup
@@ -62,9 +71,9 @@ const ICONS = {
   'asset-ledger': 'orders-o',
   'asset-stats': 'bar-chart-o',
   'asset-poker': 'fire-o',
-  'stock-holdings': 'apps-o',
+  'stock-holdings': 'diamond-o',
   'stock-positions': 'pie-chart-o',
-  'stock-trends': 'chart-trending-o',
+  'stock-trends': 'clock-o',
   'stock-capital': 'gold-coin-o'
 }
 
