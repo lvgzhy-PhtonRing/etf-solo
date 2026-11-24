@@ -5,10 +5,6 @@
 <script setup>
 import { onMounted } from 'vue'
 import { FUND_CODES, refreshFundNav } from '@/api/fundNav'
-import { seedFromBackup } from '@/api/mockDb'
-
-// 测试版：无 Supabase 凭据时，用 json/ 里的正式备份填充本地数据库
-seedFromBackup()
 
 // 每次打开软件后台抓取参考基金净值；抓不到自动回退本地数据，用户无需手动刷新
 // 串行抓取：东方财富 pingzhongdata 共用 window.Data_netWorthTrend 全局变量，

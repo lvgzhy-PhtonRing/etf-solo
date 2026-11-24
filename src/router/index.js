@@ -1,18 +1,11 @@
 // src/router/index.js
 import { createRouter, createWebHashHistory } from 'vue-router'
-import { supabase } from '@/api/supabase'
 
 const routes = [
-  {
-    path: '/',
-    name: 'login',
-    component: () => import('@/pages/LoginPage.vue'),
-    meta: { requiresAuth: false }
-  },
+  { path: '/', redirect: '/dashboard' },
   {
     path: '/',
     component: () => import('@/components/common/MainLayout.vue'),
-    meta: { requiresAuth: true },
     children: [
       {
         path: 'dashboard',
@@ -30,7 +23,7 @@ const routes = [
         path: 'trends',
         name: 'trends',
         component: () => import('@/pages/TrendsPage.vue'),
-        meta: { title: '趋势' }
+        meta: { title: '盈亏榜单' }
       },
       {
         path: 'netvalue',
@@ -57,32 +50,13 @@ const routes = [
         meta: { title: '设置' }
       }
     ]
-  }
+  },
+  { path: '/:pathMatch(.*)*', redirect: '/dashboard' }
 ]
 
 const router = createRouter({
   history: createWebHashHistory(),
   routes
-})
-
-let sessionChecked = false
-
-router.beforeEach(async (to, from, next) => {
-  let isAuthenticated = false
-  try {
-    const { data } = await supabase.auth.getSession()
-    isAuthenticated = !!data.session
-  } catch {
-    isAuthenticated = false
-  }
-
-  if (to.meta.requiresAuth && !isAuthenticated) {
-    next({ name: 'login' })
-  } else if (to.name === 'login' && isAuthenticated) {
-    next({ name: 'dashboard' })
-  } else {
-    next()
-  }
 })
 
 export default router
