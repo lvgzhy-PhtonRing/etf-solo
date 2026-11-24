@@ -1,6 +1,6 @@
-// src/stores/transactions.js
+// src/stores/transactions.js — 单账户交易（即录即生效）
 import { defineStore } from 'pinia'
-import { fetchTransactions, insertTransaction, verifyTransaction } from '@/api/supabase'
+import { fetchTransactions, insertTransaction } from '@/api/supabase'
 
 export const useTransactionStore = defineStore('transactions', {
   state: () => ({
@@ -34,24 +34,6 @@ export const useTransactionStore = defineStore('transactions', {
         throw e
       } finally {
         this.submitting = false
-      }
-    },
-    async verify(id, actualAmount) {
-      this.error = null
-      try {
-        const ok = await verifyTransaction(id, actualAmount)
-        if (ok) {
-          const tx = this.transactions.find(t => t.id === id)
-          if (tx) {
-            tx.status = 'verified'
-            tx.actual_amount = actualAmount
-          }
-        }
-        return ok
-      } catch (e) {
-        this.error = e.message
-        console.error('Verify error:', e)
-        return false
       }
     }
   }

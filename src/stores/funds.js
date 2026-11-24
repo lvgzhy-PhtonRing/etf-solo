@@ -1,4 +1,4 @@
-// src/stores/funds.js
+// src/stores/funds.js — 单账户资金口径
 import { defineStore } from 'pinia'
 import { fetchCapitalLogs, insertCapitalLog, updateCapitalLog } from '@/api/supabase'
 
@@ -10,26 +10,26 @@ export const useFundStore = defineStore('funds', {
     error: null
   }),
   getters: {
+    // 外部总资本：仅 category=capital（入金/出金/初始）
     totalCapital: (state) => {
-      // 只计外部资金变动（pool_id IS NULL 且非校对核缺），股票买卖不影响总资金池
       return state.capitalLogs
-        .filter(l => l.pool_id === null && l.category !== 'adjust')
+        .filter(l => l.category === 'capital')
         .reduce((sum, l) => sum + (l.type === 'add' ? l.amount : -l.amount), 0)
     },
-    // 总可用资金 = 外部总资本 + 校对核缺净额 + 所有卖出到账 − 所有买入支出（含已实现盈亏）
+    // 总可用资金 = 外部资本 + 调整净额 + 卖出到账 − 买入支出
     totalAvailable: (state) => {
-      const sellIn = state.capitalLogs
-        .filter(l => l.pool_id !== null && l.type === 'add')
-        .reduce((sum, l) => sum + l.amount, 0)
-      const buyOut = state.capitalLogs
-        .filter(l => l.pool_id !== null && l.type === 'remove')
-        .reduce((sum, l) => sum + l.amount, 0)
       const capital = state.capitalLogs
-        .filter(l => l.pool_id === null && l.category !== 'adjust')
+        .filter(l => l.category === 'capital')
         .reduce((sum, l) => sum + (l.type === 'add' ? l.amount : -l.amount), 0)
       const adjust = state.capitalLogs
-        .filter(l => l.pool_id === null && l.category === 'adjust')
+        .filter(l => l.category === 'adjust')
         .reduce((sum, l) => sum + (l.type === 'add' ? l.amount : -l.amount), 0)
+      const sellIn = state.capitalLogs
+        .filter(l => l.category === 'trade' && l.type === 'add')
+        .reduce((sum, l) => sum + l.amount, 0)
+      const buyOut = state.capitalLogs
+        .filter(l => l.category === 'trade' && l.type === 'remove')
+        .reduce((sum, l) => sum + l.amount, 0)
       return capital + adjust + sellIn - buyOut
     }
   },
