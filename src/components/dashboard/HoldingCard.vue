@@ -33,16 +33,9 @@
       </div>
       <div class="holding-footer">
         <span class="market-value">市值 {{ formatMoney(stock.marketValue) }}</span>
-        <div class="pool-tags">
-          <template v-if="poolTags.length">
-            <span v-for="t in poolTags" :key="t.name" class="pool-tag" :style="{ background: t.color + '22', color: t.color }">
-              {{ t.name }}
-            </span>
-          </template>
-          <span v-else class="pool-tag" :style="{ background: poolColor + '22', color: poolColor }">
-            {{ poolName }}
-          </span>
-        </div>
+        <span class="profit-pct" :class="costReturn >= 0 ? 'rise' : 'fall'">
+          收益率 {{ costReturn >= 0 ? '+' : '' }}{{ costReturn.toFixed(2) }}%
+        </span>
       </div>
     </div>
     <template #right>
@@ -58,10 +51,7 @@ import { computed } from 'vue'
 import { formatMoney, formatPrice, formatQuantity, formatChange } from '@/utils/formatters'
 
 const props = defineProps({
-  stock: { type: Object, required: true },
-  poolName: { type: String, default: '' },
-  poolColor: { type: String, default: '#4d9fff' },
-  poolTags: { type: Array, default: () => [] }
+  stock: { type: Object, required: true }
 })
 
 defineEmits(['sell', 'tap'])
@@ -76,7 +66,7 @@ const costReturn = computed(() => {
 <style scoped>
 .holding-card {
   background: var(--bg-card);
-  border: 1px solid var(--bg-glass-border);
+  border: 1px solid var(--border-soft);
   border-radius: var(--radius-lg);
   padding: 14px 16px;
   margin-bottom: 6px;
@@ -114,11 +104,12 @@ const costReturn = computed(() => {
   justify-content: space-between;
   align-items: center;
   padding-top: 8px;
-  border-top: 1px solid rgba(255,255,255,0.04);
+  border-top: 1px solid var(--border-soft);
 }
 .market-value { font-size: 12px; color: var(--text-secondary); font-family: var(--font-number); }
-.pool-tags { display: flex; gap: 4px; flex-wrap: wrap; }
-.pool-tag { font-size: 10px; padding: 1px 6px; border-radius: 3px; font-weight: 500; }
+.profit-pct { font-size: 12px; font-weight: 600; font-family: var(--font-number); }
+.profit-pct.rise { color: var(--color-rise); }
+.profit-pct.fall { color: var(--color-fall); }
 .swipe-sell-btn {
   height: 100%;
   width: 80px;

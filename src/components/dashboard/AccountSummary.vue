@@ -20,7 +20,7 @@
         <div class="asset-value num-mono">{{ positionRatio.toFixed(1) }}%</div>
       </div>
     </div>
-    <ProfitCard :float-pnl="floatPnl" :daily-pnl="dailyPnl" />
+    <ProfitCard :float-pnl="floatPnl" :daily-pnl="dailyPnl" :total-profit="totalProfit" :profit-rate="profitRate" />
   </div>
 </template>
 
@@ -35,6 +35,8 @@ defineProps({
   positionRatio: { type: Number, default: 0 },
   floatPnl: { type: Number, default: 0 },
   dailyPnl: { type: Number, default: 0 },
+  totalProfit: { type: Number, default: 0 },
+  profitRate: { type: Number, default: 0 },
   priceUpdateTime: { type: String, default: '' }
 })
 </script>
@@ -43,13 +45,6 @@ defineProps({
 .account-section {
   padding: 0 0 4px;
 }
-.account-header {
-  margin-bottom: 2px;
-}
-.account-status {
-  font-size: 10px;
-  color: var(--text-muted);
-}
 .total-asset {
   font-size: 34px;
   font-weight: 700;
@@ -57,11 +52,7 @@ defineProps({
   letter-spacing: -1px;
   line-height: 1.1;
   margin-bottom: 6px;
-  /* 霓虹渐变签名：主数字白→淡紫 */
-  background: linear-gradient(120deg, #ffffff, #c9b8ff);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--text-primary);
 }
 .asset-meta {
   display: flex;
