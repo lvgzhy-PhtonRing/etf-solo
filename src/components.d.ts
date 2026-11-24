@@ -8,15 +8,11 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     AccountSummary: typeof import('./components/dashboard/AccountSummary.vue')['default']
-    AdjustmentPanel: typeof import('./components/fund/AdjustmentPanel.vue')['default']
     BuySheet: typeof import('./components/trade/BuySheet.vue')['default']
-    CapitalDetailDialog: typeof import('./components/fund/CapitalDetailDialog.vue')['default']
     CapitalLogList: typeof import('./components/fund/CapitalLogList.vue')['default']
     CapitalSummary: typeof import('./components/fund/CapitalSummary.vue')['default']
     DonutChart: typeof import('./components/positions/DonutChart.vue')['default']
     EmptyState: typeof import('./components/common/EmptyState.vue')['default']
-    FundAllocationEditor: typeof import('./components/fund/FundAllocationEditor.vue')['default']
-    FundAllocationSummary: typeof import('./components/fund/FundAllocationSummary.vue')['default']
     FundNavChart: typeof import('./components/fund/FundNavChart.vue')['default']
     HoldingCard: typeof import('./components/dashboard/HoldingCard.vue')['default']
     KLineOverlay: typeof import('./components/kline/KLineOverlay.vue')['default']
@@ -36,7 +32,6 @@ declare module 'vue' {
     VanField: typeof import('vant/es')['Field']
     VanForm: typeof import('vant/es')['Form']
     VanPopup: typeof import('vant/es')['Popup']
-    VanSlider: typeof import('vant/es')['Slider']
     VanSwipe: typeof import('vant/es')['Swipe']
     VanSwipeCell: typeof import('vant/es')['SwipeCell']
     VanSwipeItem: typeof import('vant/es')['SwipeItem']
