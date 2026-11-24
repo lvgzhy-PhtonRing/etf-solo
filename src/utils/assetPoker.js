@@ -1,4 +1,4 @@
-// src/utils/assetPoker.js — 德州战绩（按日/周/月聚合）
+// src/utils/assetPoker.js — 德州战绩（按日/周/月聚合 + K 线几何）
 
 export const POKER_CATEGORIES = ['德州入账', '德州出账']
 
@@ -16,7 +16,7 @@ export function pokerFlows(flows, filter = 'all') {
   )
 }
 
-function weekKey(dateStr) {
+export function weekKey(dateStr) {
   const d = new Date(dateStr + 'T00:00:00')
   const day = d.getDay()
   const diff = day === 0 ? -6 : 1 - day
@@ -45,4 +45,30 @@ export function buildPokerBars(flows, mode = 'day', filter = 'all') {
   return [...map.values()]
     .sort((a, b) => a.key.localeCompare(b.key))
     .map(r => ({ ...r, income: r2(r.income), expense: r2(r.expense), pnl: r2(r.pnl) }))
+}
+
+/**
+ * K 线几何：以零轴为基准的蜡烛高度（百分比）与统计信息
+ */
+export function pokerChart(bars = []) {
+  const nets = bars.map(b => Number(b.pnl) || 0)
+  const periods = bars.length
+  const wins = nets.filter(n => n >= 0).length
+  const losses = periods - wins
+  const avgNet = periods ? nets.reduce((s, n) => s + n, 0) / periods : 0
+  const maxAbs = Math.max(1, ...nets.map(Math.abs))
+  const halfRange = maxAbs * 1.25
+
+  const items = bars.map((b, i) => {
+    const net = nets[i]
+    return {
+      key: b.key,
+      net,
+      isUp: net >= 0,
+      // 相对半幅的百分比；最小 1% 保证可见
+      heightPct: Math.max(1, (Math.abs(net) / halfRange) * 100)
+    }
+  })
+
+  return { items, stats: { periods, wins, losses, avgNet: r2(avgNet) }, maxAbs, halfRange }
 }

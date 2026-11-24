@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { STATS_MODES, statsWindow, flowsInWindow, aggregateByCategory } from '../src/utils/assetStats'
+import { STATS_MODES, statsWindow, flowsInWindow, aggregateByCategory, excludePoker } from '../src/utils/assetStats'
 
 const now = new Date(2026, 10, 24) // 2026-11-24 本地
 
@@ -71,5 +71,14 @@ describe('assetStats（统计报表）', () => {
     const r = aggregateByCategory(flows, 'income')
     expect(r.total).toBe(342.5)
     expect(r.items[0].category).toBe('德州入账')
+  })
+
+  it('统计报表排除德州入账/出账（与源程序一致）', () => {
+    const flows = [
+      { category: '德州入账', amount: 100 },
+      { category: '德州出账', amount: -50 },
+      { category: '生活购物', amount: -30 }
+    ]
+    expect(excludePoker(flows).map(f => f.category)).toEqual(['生活购物'])
   })
 })

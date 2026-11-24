@@ -19,6 +19,7 @@ declare module 'vue' {
     LoadingSkeleton: typeof import('./components/common/LoadingSkeleton.vue')['default']
     MainLayout: typeof import('./components/common/MainLayout.vue')['default']
     NavOverview: typeof import('./components/fund/NavOverview.vue')['default']
+    PokerChart: typeof import('./components/asset/PokerChart.vue')['default']
     ProfitCard: typeof import('./components/dashboard/ProfitCard.vue')['default']
     RankingsPanel: typeof import('./components/trend/RankingsPanel.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']

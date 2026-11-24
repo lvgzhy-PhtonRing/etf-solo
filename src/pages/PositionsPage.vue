@@ -242,7 +242,7 @@ onMounted(async () => {
 </style>
 
 <style scoped>
-/* 净值卡：与首页首卡同款渐变底 */
+/* nav hero card (same gradient as dashboard) */
 .nav-hero {
   padding: 12px 16px;
   background: linear-gradient(150deg, rgba(191,107,63,.08), rgba(214,69,69,.05) 60%, #ffffff);

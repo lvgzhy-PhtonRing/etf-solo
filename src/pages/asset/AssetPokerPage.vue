@@ -1,84 +1,136 @@
 <template>
   <div class="page poker-page">
     <div class="page-header">
-      <span class="page-title">德州战绩<span class="title-en">Poker</span></span>
+      <span class="page-title">德州战绩<span class="page-sub">德州扑克出入账统计</span></span>
     </div>
 
     <LoadErrorTip v-if="store.error" :message="store.error" @retry="store.loadAll()" />
 
     <!-- 筛选 -->
-    <div class="filter-tabs">
+    <div class="seg-tabs">
       <button
         v-for="f in FILTERS"
         :key="f.key"
-        class="filter-btn"
-        :class="{ 'filter-btn--on': filter === f.key }"
+        class="seg-btn"
+        :class="{ 'seg-btn--on': filter === f.key }"
         @click="filter = f.key"
       >{{ f.label }}</button>
     </div>
 
-    <!-- 汇总 -->
-    <div class="section-card poker-sum">
-      <div class="ps-item">
-        <span class="ps-label">总收入</span>
-        <span class="ps-value num-mono rise">{{ formatMoney(summary.income) }}</span>
-      </div>
-      <div class="ps-item">
-        <span class="ps-label">总支出</span>
-        <span class="ps-value num-mono fall">{{ formatMoney(summary.expense) }}</span>
-      </div>
-      <div class="ps-item">
-        <span class="ps-label">净盈亏</span>
-        <span class="ps-value num-mono" :class="summary.pnl >= 0 ? 'rise' : 'fall'">
-          {{ summary.pnl >= 0 ? '+' : '' }}{{ formatMoney(summary.pnl) }}
-        </span>
-      </div>
-    </div>
-
-    <!-- 周期 -->
-    <div class="kline-tabs">
+    <!-- K 线周期 -->
+    <div class="seg-tabs">
       <button
         v-for="m in MODES"
         :key="m.key"
-        class="kline-btn"
-        :class="{ 'kline-btn--on': mode === m.key }"
+        class="seg-btn"
+        :class="{ 'seg-btn--on': mode === m.key }"
         @click="mode = m.key"
       >{{ m.label }}</button>
+    </div>
+
+    <!-- 三卡 -->
+    <div class="sum-grid">
+      <div class="sum-box">
+        <div class="sb-label">德州入账</div>
+        <div class="sb-value rise num-mono">{{ formatMoney(summary.income) }}</div>
+      </div>
+      <div class="sum-box">
+        <div class="sb-label">德州出账</div>
+        <div class="sb-value fall num-mono">{{ formatMoney(summary.expense) }}</div>
+      </div>
+      <div class="sum-box">
+        <div class="sb-label">德州净盈亏</div>
+        <div class="sb-value num-mono" :class="summary.pnl >= 0 ? 'rise' : 'fall'">
+          {{ summary.pnl >= 0 ? '+' : '' }}{{ formatMoney(summary.pnl) }}
+        </div>
+      </div>
     </div>
 
     <LoadingSkeleton v-if="store.loading && !store.loaded" :count="3" />
 
     <template v-else>
-      <div v-if="!bars.length" class="empty-tip">暂无德州记录</div>
-      <div v-else class="section-card">
-        <!-- 柱状图 -->
-        <div class="bar-chart">
-          <div v-for="(b, i) in bars" :key="b.key" class="bar-col">
-            <div class="bar-area">
-              <div
-                class="bar"
-                :class="b.pnl >= 0 ? 'bar--up' : 'bar--down'"
-                :style="{ height: heightOf(b.pnl) }"
-              ></div>
-            </div>
-            <span class="bar-label">{{ showLabel(i) ? shortLabel(b.key) : '' }}</span>
-          </div>
+      <!-- 图表卡 -->
+      <div class="section-card chart-card">
+        <div class="chart-head">
+          <span class="chart-title"><span class="dot"></span>各期趋势</span>
+          <button class="fs-btn" @click="fsOpen = true">⛶ 全屏</button>
         </div>
 
-        <!-- 明细 -->
-        <div class="bar-list">
-          <div v-for="b in barsDesc" :key="b.key" class="bar-row">
-            <div class="br-left">
-              <span class="br-key">{{ longLabel(b.key) }}</span>
-              <span class="br-meta">{{ b.count }} 笔 · 收 {{ formatMoney(b.income) }} / 支 {{ formatMoney(b.expense) }}</span>
-            </div>
-            <span class="br-pnl num-mono" :class="b.pnl >= 0 ? 'rise' : 'fall'">
-              {{ b.pnl >= 0 ? '+' : '' }}{{ formatMoney(b.pnl) }}
+        <div class="chart-info">
+          <span>周期: <b>{{ chart.stats.periods }}</b></span>
+          <span>盈利: <b class="rise">{{ chart.stats.wins }}次</b></span>
+          <span>亏损: <b class="fall">{{ chart.stats.losses }}次</b></span>
+          <span>场均: <b>{{ chart.stats.avgNet >= 0 ? '+' : '' }}{{ formatMoney(chart.stats.avgNet) }}</b></span>
+        </div>
+
+        <PokerChart :bars="bars" :mode="mode" />
+      </div>
+
+      <!-- 明细（倒序；月K按周分组） -->
+      <div class="detail-list">
+        <div v-for="d in detailsDesc" :key="d.key" class="section-card detail-card">
+          <div class="dc-head">
+            <span class="dc-label">{{ d.label }}</span>
+            <span class="dc-net num-mono" :class="d.net >= 0 ? 'rise' : 'fall'">
+              {{ d.net >= 0 ? '+' : '' }}{{ formatMoney(d.net) }}
             </span>
+          </div>
+
+          <!-- 月K：按周分组 -->
+          <template v-if="mode === 'month'">
+            <div v-for="w in d.weeks" :key="w.key" class="week-block">
+              <div class="week-head">
+                <span class="week-label">{{ w.label }}</span>
+                <span class="week-net num-mono" :class="w.net >= 0 ? 'rise' : 'fall'">
+                  {{ w.net >= 0 ? '+' : '-' }}{{ formatMoney(Math.abs(w.net)) }}
+                </span>
+              </div>
+              <div class="item-list">
+                <div v-for="f in w.items" :key="f.id" class="item-row item-row--sub">
+                  <div class="ir-left">
+                    <span class="ir-title">{{ f.note || f.category }}</span>
+                    <span class="ir-meta">{{ f.date.slice(5) }} · {{ f.account || '—' }}</span>
+                  </div>
+                  <span class="ir-amt num-mono" :class="f.amount >= 0 ? 'rise' : 'fall'">
+                    {{ f.amount >= 0 ? '+' : '-' }}{{ formatMoney(Math.abs(f.amount)) }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <!-- 日/周K：平铺 -->
+          <div v-else class="item-list">
+            <div v-for="f in d.items" :key="f.id" class="item-row">
+              <div class="ir-left">
+                <span class="ir-title">{{ f.note || f.category }}</span>
+                <span class="ir-meta">{{ f.date.slice(5) }} · {{ f.account || '—' }}</span>
+              </div>
+              <span class="ir-amt num-mono" :class="f.amount >= 0 ? 'rise' : 'fall'">
+                {{ f.amount >= 0 ? '+' : '-' }}{{ formatMoney(Math.abs(f.amount)) }}
+              </span>
+            </div>
           </div>
         </div>
       </div>
     </template>
+
+    <!-- 全屏 -->
+    <div v-if="fsOpen" class="fs-overlay">
+      <div class="fs-header">
+        <span class="fs-title">德州战绩 · {{ modeLabel }}</span>
+        <button class="fs-close" @click="fsOpen = false">✕</button>
+      </div>
+      <div class="fs-body">
+        <div class="chart-info chart-info--fs">
+          <span>周期: <b>{{ chart.stats.periods }}</b></span>
+          <span>盈利: <b class="rise">{{ chart.stats.wins }}次</b></span>
+          <span>亏损: <b class="fall">{{ chart.stats.losses }}次</b></span>
+          <span>场均: <b>{{ chart.stats.avgNet >= 0 ? '+' : '' }}{{ formatMoney(chart.stats.avgNet) }}</b></span>
+        </div>
+        <PokerChart :bars="bars" :mode="mode" fullscreen />
+      </div>
+    </div>
   </div>
 </template>
 
@@ -86,8 +138,10 @@
 import { ref, computed, onMounted } from 'vue'
 import LoadErrorTip from '@/components/common/LoadErrorTip.vue'
 import LoadingSkeleton from '@/components/common/LoadingSkeleton.vue'
+import PokerChart from '@/components/asset/PokerChart.vue'
 import { useAssetStore } from '@/stores/assets'
-import { buildPokerBars, pokerPeriodKey } from '@/utils/assetPoker'
+import { buildPokerBars, pokerChart, pokerFlows, pokerPeriodKey } from '@/utils/assetPoker'
+import { weekKey, weekLabel } from '@/utils/assetLedger'
 import { formatMoney } from '@/utils/formatters'
 
 const store = useAssetStore()
@@ -98,16 +152,20 @@ const FILTERS = [
   { key: '线下', label: '线下' }
 ]
 const MODES = [
-  { key: 'day', label: '按日' },
-  { key: 'week', label: '按周' },
-  { key: 'month', label: '按月' }
+  { key: 'day', label: '日K' },
+  { key: 'week', label: '周K' },
+  { key: 'month', label: '月K' }
 ]
 
-const filter = ref('all')
+// 源程序默认筛选「线上」
+const filter = ref('线上')
 const mode = ref('week')
+const fsOpen = ref(false)
+
+const modeLabel = computed(() => MODES.find(m => m.key === mode.value)?.label || '')
 
 const bars = computed(() => buildPokerBars(store.flows, mode.value, filter.value))
-const barsDesc = computed(() => bars.value.slice().reverse())
+const chart = computed(() => pokerChart(bars.value))
 
 const summary = computed(() => {
   const s = bars.value.reduce((acc, b) => ({
@@ -121,35 +179,56 @@ const summary = computed(() => {
   }
 })
 
-const maxAbs = computed(() => Math.max(1, ...bars.value.map(b => Math.abs(b.pnl))))
+// 明细：按周期分组，倒序；月K 下再按周分组
+const detailsDesc = computed(() => {
+  const flows = pokerFlows(store.flows, filter.value)
+  const map = new Map()
+  for (const f of flows) {
+    const key = pokerPeriodKey(f.date, mode.value)
+    if (!map.has(key)) map.set(key, { key, items: [] })
+    map.get(key).items.push(f)
+  }
+  return [...map.values()]
+    .sort((a, b) => b.key.localeCompare(a.key))
+    .map(g => {
+      const items = g.items.slice().sort((a, b) => {
+        if (a.date !== b.date) return String(b.date).localeCompare(String(a.date))
+        return (b.id || 0) - (a.id || 0)
+      })
+      const income = items.filter(f => f.amount >= 0).reduce((s, f) => s + f.amount, 0)
+      const expense = items.filter(f => f.amount < 0).reduce((s, f) => s + Math.abs(f.amount), 0)
+      const base = {
+        key: g.key,
+        label: modeLabelOf(g.key),
+        net: Math.round((income - expense) * 100) / 100,
+        items
+      }
+      if (mode.value !== 'month') return base
 
-// 柱子过多时抽稀标签，避免 375px 下重叠
-function showLabel(i) {
-  const n = bars.value.length
-  if (n <= 10) return true
-  const step = Math.ceil(n / 8)
-  return i % step === 0
-}
+      const wk = new Map()
+      for (const f of items) {
+        const k = weekKey(f.date)
+        if (!wk.has(k)) wk.set(k, { key: k, label: weekLabel(k), items: [] })
+        wk.get(k).items.push(f)
+      }
+      base.weeks = [...wk.values()]
+        .sort((a, b) => b.key.localeCompare(a.key))
+        .map(w => {
+          const wi = w.items.filter(f => f.amount >= 0).reduce((s, f) => s + f.amount, 0)
+          const we = w.items.filter(f => f.amount < 0).reduce((s, f) => s + Math.abs(f.amount), 0)
+          return { ...w, net: Math.round((wi - we) * 100) / 100 }
+        })
+      return base
+    })
+})
 
-function heightOf(pnl) {
-  const pct = Math.min(100, (Math.abs(pnl) / maxAbs.value) * 100)
-  return Math.max(4, pct) + '%'
-}
-
-function shortLabel(key) {
-  if (mode.value === 'month') return key.slice(2).replace('-', '/')
-  const d = new Date(key + 'T00:00:00')
-  return `${d.getMonth() + 1}/${d.getDate()}`
-}
-
-function longLabel(key) {
+function modeLabelOf(key) {
   if (mode.value === 'month') return key.replace('-', '年') + '月'
-  if (mode.value === 'day') return key
-  const start = new Date(key + 'T00:00:00')
-  const end = new Date(start)
-  end.setDate(end.getDate() + 6)
-  const f = d => `${d.getMonth() + 1}/${d.getDate()}`
-  return `${key.slice(0, 4)} ${f(start)}-${f(end)}`
+  if (mode.value === 'week') {
+    const y = key.slice(0, 4)
+    return `${y} ${weekLabel(key)}`
+  }
+  return key
 }
 
 onMounted(() => {
@@ -158,66 +237,86 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.filter-tabs {
-  display: flex; gap: 4px; padding: 3px;
+.page-sub { font-size: 11px; font-weight: 400; color: var(--text-muted); margin-left: 8px; }
+
+.seg-tabs {
+  display: flex; gap: 2px; padding: 3px;
   background: var(--bg-hover);
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-md);
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
-.filter-btn {
-  flex: 1; padding: 6px 0;
-  border: none; border-radius: var(--radius-sm);
-  background: transparent; color: var(--text-secondary);
+.seg-btn {
+  flex: 1; padding: 6px 0; border: none; border-radius: var(--radius-sm);
+  background: transparent; color: var(--text-muted);
   font-size: 12px; font-family: inherit; cursor: pointer;
 }
-.filter-btn--on { background: var(--bg-card); color: var(--text-primary); font-weight: 600; box-shadow: 0 1px 4px rgba(120,100,75,.12); }
+.seg-btn--on { background: var(--bg-card); color: var(--bg-accent); font-weight: 600; box-shadow: 0 1px 4px rgba(120,100,75,.12); }
 
-.poker-sum { display: flex; justify-content: space-between; gap: 8px; }
-.ps-item { display: flex; flex-direction: column; gap: 3px; }
-.ps-label { font-size: 10px; color: var(--text-muted); }
-.ps-value { font-size: 15px; font-weight: 700; }
+.sum-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px; }
+.sum-box {
+  background: var(--bg-card); border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md); padding: 8px 4px; text-align: center;
+  box-shadow: var(--shadow-card);
+}
+.sb-label { font-size: 10px; color: var(--text-muted); margin-bottom: 2px; }
+.sb-value { font-size: 14px; font-weight: 700; }
 
-.kline-tabs {
-  display: flex; gap: 4px; padding: 3px;
+.chart-card { padding: 12px 12px 6px; }
+.chart-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.chart-title { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--bg-accent); }
+.fs-btn {
+  border: 1px solid var(--border-soft); background: var(--bg-card);
+  color: var(--text-secondary); border-radius: var(--radius-round);
+  font-size: 11px; padding: 3px 10px; cursor: pointer; font-family: inherit;
+}
+
+.chart-info {
+  display: flex; gap: 14px; flex-wrap: wrap;
   background: var(--bg-hover);
-  border: 1px solid var(--border-soft);
   border-radius: var(--radius-md);
-  margin-bottom: 10px;
+  padding: 7px 10px;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
 }
-.kline-btn {
-  flex: 1; padding: 6px 0;
-  border: none; border-radius: var(--radius-sm);
-  background: transparent; color: var(--text-secondary);
-  font-size: 12px; font-family: inherit; cursor: pointer;
-}
-.kline-btn--on { background: var(--bg-card); color: var(--text-primary); font-weight: 600; box-shadow: 0 1px 4px rgba(120,100,75,.12); }
+.chart-info b { color: var(--text-primary); font-weight: 600; }
+.chart-info--fs { font-size: 12px; }
 
-.empty-tip { text-align: center; padding: 40px 0; color: var(--text-muted); font-size: 13px; }
+.detail-list { display: flex; flex-direction: column; gap: 8px; }
+.detail-card { padding: 12px 14px; }
+.dc-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+.dc-label { font-size: 13px; font-weight: 700; }
+.dc-net { font-size: 13px; font-weight: 700; }
 
-.bar-chart {
-  display: flex; align-items: flex-end; gap: 4px;
-  height: 130px;
-  padding: 6px 0 0;
-  overflow-x: auto;
-  border-bottom: 1px solid var(--border-soft);
-}
-.bar-col { flex: 1; min-width: 14px; display: flex; flex-direction: column; align-items: center; height: 100%; }
-.bar-area { flex: 1; display: flex; align-items: flex-end; justify-content: center; width: 100%; }
-.bar { width: 70%; max-width: 18px; border-radius: 3px 3px 0 0; }
-.bar--up { background: var(--color-rise); }
-.bar--down { background: var(--color-fall); }
-.bar-label { font-size: 9px; color: var(--text-muted); margin-top: 4px; white-space: nowrap; }
+.week-block { margin-bottom: 8px; }
+.week-head { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-secondary); margin-bottom: 4px; }
+.week-net { font-weight: 700; font-family: var(--font-number); }
 
-.bar-list { display: flex; flex-direction: column; margin-top: 10px; }
-.bar-row {
-  display: flex; justify-content: space-between; align-items: center; gap: 8px;
-  padding: 8px 2px;
-  border-bottom: 1px solid var(--border-soft);
+.item-list { display: flex; flex-direction: column; gap: 5px; }
+.item-row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.item-row--sub { padding-left: 10px; }
+.ir-left { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+.ir-title { font-size: 12px; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ir-meta { font-size: 10px; color: var(--text-muted); white-space: nowrap; }
+.ir-amt { font-size: 11px; font-weight: 700; font-family: var(--font-number); flex-shrink: 0; }
+
+.fs-overlay {
+  position: fixed; inset: 0; z-index: 3000;
+  display: flex; flex-direction: column;
+  background: var(--bg-primary);
 }
-.bar-row:last-child { border-bottom: none; }
-.br-left { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.br-key { font-size: 12px; font-weight: 500; }
-.br-meta { font-size: 10px; color: var(--text-muted); }
-.br-pnl { font-size: 13px; font-weight: 600; flex-shrink: 0; }
+.fs-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 16px; border-bottom: 1px solid var(--border-soft);
+  flex-shrink: 0;
+}
+.fs-title { font-size: 15px; font-weight: 700; }
+.fs-close {
+  width: 32px; height: 32px; border: none; border-radius: 50%;
+  background: var(--bg-hover); color: var(--text-secondary);
+  font-size: 14px; cursor: pointer;
+}
+.fs-body { flex: 1; overflow: auto; padding: 12px 12px 20px; }
 </style>

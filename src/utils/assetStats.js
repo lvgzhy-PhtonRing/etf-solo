@@ -55,6 +55,11 @@ export function flowsInWindow(flows, w) {
   return (flows || []).filter(f => f.date >= w.start && f.date < w.end)
 }
 
+// 统计报表口径：排除德州入账/出账（源程序 renderStats 的过滤规则）
+export function excludePoker(flows) {
+  return (flows || []).filter(f => f.category !== '德州入账' && f.category !== '德州出账')
+}
+
 export function aggregateByCategory(flows, type) {
   const map = new Map()
   let total = 0

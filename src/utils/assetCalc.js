@@ -51,6 +51,7 @@ export function calcAssets(accounts = {}, adjustments = {}) {
     key: g.key,
     label: g.label,
     theme: g.theme,
+    accounts: g.accounts,
     total: r2(g.accounts.reduce((s, a) => s + num(accounts[a.id]), 0))
   }))
   const totalAssets = r2(groups.reduce((s, g) => s + g.total, 0))
