@@ -1,0 +1,46 @@
+/* src/assets/styles/variables.css */
+:root {
+  /* 主题色（方案C：灵动霓虹 — 深靛蓝底 + 顶部极光 + 玻璃卡片） */
+  --bg-primary: radial-gradient(120% 60% at 50% -8%, rgba(141,111,255,.30), transparent 60%),
+                radial-gradient(90% 50% at 8% 0%, rgba(255,77,109,.16), transparent 55%),
+                radial-gradient(90% 50% at 92% 0%, rgba(0,240,168,.14), transparent 55%),
+                linear-gradient(180deg, #181631 0%, #120f26 100%);
+  --bg-card: rgba(255,255,255,0.055);
+  --bg-solid: #1e1b3a; /* 弹层/下拉等不透明面板底（--bg-card 是半透明玻璃，不能用于弹层） */
+  --bg-accent: #6f4dff;
+  --bg-hover: rgba(255,255,255,0.07);
+  --bg-glass-border: rgba(255,255,255,0.12);
+
+  /* 涨跌色（A股习惯：涨=红，跌=绿） */
+  --color-rise: #ff4d6d;
+  --color-fall: #00f0a8;
+  --color-warn: #ffd23f;
+
+  /* 子池颜色 */
+  --pool-gongyou: #4d9fff;
+  --pool-chun: #ff4d6d;
+  --pool-wei: #00f0a8;
+  --pool-dui: #ffd23f;
+  --pool-hui: #b18cff;
+
+  /* 文字色 */
+  --text-primary: #f4f2ff;
+  --text-secondary: #a7a3c8;
+  --text-muted: #6f6b8f;
+
+  /* 间距 */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 12px;
+  --spacing-lg: 16px;
+  --spacing-xl: 24px;
+
+  /* 圆角 */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-round: 999px;
+
+  /* 字体 */
+  --font-number: 'Cascadia Code', 'SF Mono', 'JetBrains Mono', 'Fira Code', 'Consolas', 'Courier New', monospace;
+}

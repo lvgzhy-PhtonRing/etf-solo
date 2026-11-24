@@ -1,0 +1,350 @@
+<template>
+  <div class="page fund-page">
+    <div class="page-header">
+      <span class="page-title">资本管理<span class="title-en">Capital Management</span></span>
+    </div>
+
+    <CapitalSummary
+      :total-capital="totalCapital"
+      @open-detail="showDetailDialog = true"
+    />
+
+    <LoadingSkeleton v-if="loading" :count="2" />
+    <template v-else>
+      <AdjustmentPanel
+        :logs="adjustLogs"
+        :submitting="fundStore.submitting"
+        :market-value="totalMarketValue"
+        :total-available="totalAvailable"
+        @add="onAdjustChange"
+        @delete="onDeleteLog"
+      />
+      <FundAllocationSummary
+        :allocation="allocation"
+        :pool-flows="poolFlows"
+        :pool-market-values="poolMarketValues"
+        :total-capital="totalCapital"
+        @edit="showAllocEditor = true"
+      />
+    </template>
+
+    <CapitalDetailDialog v-model:show="showDetailDialog" :logs="capitalLogs" @delete="onDeleteLog" @edit="onEditLog" @capital-change="onCapitalChange" />
+
+    <FundAllocationEditor
+      v-if="showAllocEditor"
+      :allocation="allocation"
+      :pool-flows="poolFlows"
+      :total-capital="totalCapital"
+      @close="showAllocEditor = false"
+      @save="onAllocSave"
+    />
+  </div>
+</template>
+
+<script setup>
+import { ref, computed, onMounted } from 'vue'
+import { usePoolStore } from '@/stores/pools'
+import { useFundStore } from '@/stores/funds'
+import { useHoldingStore } from '@/stores/holdings'
+import { usePriceStore } from '@/stores/prices'
+import { useTransactionStore } from '@/stores/transactions'
+import { serializeCorrectionNote } from '@/utils/correctionDetails'
+
+import { deleteCapitalLog, updateCapitalLog, updateTransaction, deleteTransaction, fetchTransactionsByPoolStock, deleteHolding, upsertHolding, savePoolAllocation, loadPoolAllocation, logDelete } from '@/api/supabase'
+import FundAllocationSummary from '@/components/fund/FundAllocationSummary.vue'
+import FundAllocationEditor from '@/components/fund/FundAllocationEditor.vue'
+import AdjustmentPanel from '@/components/fund/AdjustmentPanel.vue'
+import CapitalSummary from '@/components/fund/CapitalSummary.vue'
+import CapitalDetailDialog from '@/components/fund/CapitalDetailDialog.vue'
+import LoadingSkeleton from '@/components/common/LoadingSkeleton.vue'
+
+const poolStore = usePoolStore()
+const fundStore = useFundStore()
+const holdingStore = useHoldingStore()
+const priceStore = usePriceStore()
+const txStore = useTransactionStore()
+
+const loading = ref(true)
+const showDetailDialog = ref(false)
+const totalCapital = computed(() => fundStore.totalCapital)
+
+const totalMarketValue = computed(() => {
+  return holdingStore.holdings.reduce((s, h) => {
+    const price = priceStore.prices[h.stock_code]?.price || 0
+    return s + price * h.quantity
+  }, 0)
+})
+
+// 总可用资金 = 外部总资本 + 所有卖出到账 − 所有买入支出（含已实现盈亏，与 Dashboard 一致）
+const totalAvailable = computed(() => fundStore.totalAvailable)
+
+// ===== 子池资金分配（只读结果 + 全屏编辑） =====
+const STEP = 10000
+const USER_KEYS = ['春', '维', '队', '回']
+const showAllocEditor = ref(false)
+
+function defaultAllocation() {
+  const each = Math.floor(totalCapital.value / 5 / STEP) * STEP
+  const alloc = {}
+  for (const k of USER_KEYS) alloc[k] = each
+  return alloc
+}
+const allocation = ref(defaultAllocation())
+
+// 各子池 capital_log 流水（sell-in / buy-out），用于 flow 模型算可用
+const poolFlows = computed(() => {
+  const map = {}
+  for (const l of fundStore.capitalLogs) {
+    if (l.pool_id === null) continue
+    const pool = poolStore.pools.find(p => p.id === l.pool_id)
+    const name = pool?.name
+    if (!name) continue
+    const entry = map[name] = map[name] || { sellIn: 0, buyOut: 0 }
+    if (l.type === 'add') entry.sellIn += l.amount
+    else entry.buyOut += l.amount
+  }
+  return map
+})
+
+// 各子池持仓市值
+const poolMarketValues = computed(() => {
+  const map = {}
+  for (const h of holdingStore.holdings) {
+    const pool = poolStore.pools.find(p => p.id === h.pool_id)
+    const name = pool?.name
+    if (!name) continue
+    const price = priceStore.prices[h.stock_code]?.price || 0
+    map[name] = (map[name] || 0) + price * h.quantity
+  }
+  return map
+})
+
+async function loadAllocation() {
+  try {
+    const server = await loadPoolAllocation()
+    if (server) {
+      for (const k of USER_KEYS) {
+        if (server[k] !== undefined) allocation.value[k] = server[k]
+      }
+      return
+    }
+  } catch (e) {}
+  // fallback to localStorage（向后兼容：旧格式可能含公共池，忽略）
+  try {
+    const raw = localStorage.getItem('poolAmounts')
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      for (const k of USER_KEYS) {
+        if (parsed[k] !== undefined) allocation.value[k] = parsed[k]
+      }
+    }
+  } catch (e) {}
+}
+
+function onAllocSave(config) {
+  allocation.value = config
+  localStorage.setItem('poolAmounts', JSON.stringify(config))
+  savePoolAllocation(config).catch(e => console.error('Save allocation:', e))
+  showAllocEditor.value = false
+}
+// 资本变动记录（仅外部资金 增资/减资/初始，不含股票买卖与校对核缺）
+const capitalLogs = computed(() => fundStore.capitalLogs.filter(l => l.pool_id === null && l.category !== 'adjust'))
+// 校对核缺记录（独立管理）
+const adjustLogs = computed(() => fundStore.capitalLogs.filter(l => l.pool_id === null && l.category === 'adjust'))
+
+function todayStr() {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+async function onCapitalChange({ type, amount, note }) {
+  try {
+    await fundStore.addCapitalLog({
+      pool_id: null, type, amount,
+      note: note || '',
+      created_by: 'admin'
+    })
+    const { saveCurrentPositionSnapshot } = await import('@/utils/positionSnapshot')
+    saveCurrentPositionSnapshot().catch(e => console.error('Position snapshot:', e))
+  } catch (e) {
+    console.error('Capital change error:', e)
+  }
+}
+
+// 校对核缺新增（只调可用资金/总资产，不进总资本）
+async function onAdjustChange({ type, amount, note, date, details }) {
+  try {
+    await fundStore.addCapitalLog({
+      pool_id: null, type, amount,
+      note: serializeCorrectionNote(note, details),
+      category: 'adjust',
+      created_at: (date || todayStr()) + 'T00:00:00+00:00',
+      created_by: 'admin'
+    })
+    const { saveCurrentPositionSnapshot } = await import('@/utils/positionSnapshot')
+    saveCurrentPositionSnapshot().catch(e => console.error('Position snapshot:', e))
+  } catch (e) {
+    console.error('Adjust change error:', e)
+  }
+}
+
+async function onEditLog(payload) {
+  try {
+    const { id, amount, note } = payload
+    // 普通资金变动（增资/减资）：更新后刷新，确保总可用联动
+    if (!payload.pool_id) {
+      const updates = { amount, note }
+      if (payload.date) updates.created_at = payload.date + 'T00:00:00+00:00'
+      await fundStore.editCapitalLog(id, updates)
+      await fundStore.loadCapitalLogs()
+      return
+    }
+    // 买入/卖出：需要联动交易 + 持仓
+    const { stock_code, quantity: newQty, pool_id, type: capType } = payload
+    if (!stock_code || !newQty) {
+      await fundStore.editCapitalLog(id, { amount, note })
+      await fundStore.loadCapitalLogs()
+      return
+    }
+
+    // 1. 找对应交易记录（用原金额匹配，因为金额已修改）
+    const allTxs = await fetchTransactionsByPoolStock(pool_id, stock_code)
+    const matchAmount = payload.origAmount || amount
+    const matchedTx = allTxs.find(t => Math.abs(t.amount - matchAmount) < 0.01)
+    if (!matchedTx) {
+      await fundStore.editCapitalLog(id, { amount, note })
+      await fundStore.loadCapitalLogs()
+      return
+    }
+
+    // 2. 更新交易记录（数量 + 金额）
+    const newPrice = newQty > 0 ? amount / newQty : 0
+    await updateTransaction(matchedTx.id, { quantity: newQty, amount, price: newPrice, note })
+    txStore.transactions = txStore.transactions.map(t =>
+      t.id === matchedTx.id ? { ...t, quantity: newQty, amount, price: newPrice, note } : t
+    )
+
+    // 3. 用所有交易重算该子池+该股票的持仓
+    const isBuy = capType === 'remove'  // capital_log.remove = 买入
+    const otherTxs = allTxs.filter(t => t.id !== matchedTx.id)
+    const allCalculated = [
+      ...otherTxs,
+      { ...matchedTx, quantity: newQty, amount, price: newPrice, type: isBuy ? 'buy' : 'sell' }
+    ]
+    let totalBuyQty = 0, totalBuyAmt = 0
+    for (const tx of allCalculated) {
+      if (tx.type === 'buy') { totalBuyQty += tx.quantity; totalBuyAmt += tx.amount }
+    }
+    const newCostPrice = totalBuyQty > 0 ? totalBuyAmt / totalBuyQty : 0
+    const netQty = allCalculated.reduce((s, tx) => s + (tx.type === 'buy' ? tx.quantity : -tx.quantity), 0)
+
+    if (netQty <= 0) {
+      const { deleteHolding } = await import('@/api/supabase')
+      await deleteHolding(pool_id, stock_code)
+    } else {
+      const { upsertHolding } = await import('@/api/supabase')
+      await upsertHolding({
+        pool_id, stock_code,
+        stock_name: matchedTx.stock_name || '',
+        quantity: netQty,
+        cost_price: newCostPrice
+      })
+    }
+    await holdingStore.loadHoldings()
+
+    // 4. 更新资金记录 + 全量刷新
+    await fundStore.editCapitalLog(id, { amount, note })
+    await fundStore.loadCapitalLogs()
+  } catch (e) {
+    console.error('Edit log error:', e)
+  }
+  const { saveCurrentPositionSnapshot } = await import('@/utils/positionSnapshot')
+  saveCurrentPositionSnapshot().catch(e => console.error('Position snapshot:', e))
+}
+
+async function onDeleteLog(log) {
+  try {
+    // 普通资金变动（增资/减资）：只删记录
+    if (!log.pool_id) {
+      await deleteCapitalLog(log.id)
+      await logDelete('capital_log', log.id, `${log.type} ${log.amount} ${log.note || ''}`)
+      await fundStore.loadCapitalLogs()
+      return
+    }
+
+    // 买入/卖出：需要级联交易 + 持仓
+    const { id, pool_id, type: capType, amount, note } = log
+    const code = parseStockCode2(note)
+    if (!code) {
+      await deleteCapitalLog(id)
+      await logDelete('capital_log', id, `${capType} ${amount} ${note || ''}`)
+      await fundStore.loadCapitalLogs()
+      return
+    }
+
+    // 找到对应交易记录
+    const allTxs = await fetchTransactionsByPoolStock(pool_id, code)
+    const matchedTx = allTxs.find(t => Math.abs(t.amount - amount) < 0.01)
+    if (matchedTx) {
+      await deleteTransaction(matchedTx.id)
+      txStore.transactions = txStore.transactions.filter(t => t.id !== matchedTx.id)
+    }
+
+    // 用剩余交易重算持仓
+    const remaining = allTxs.filter(t => t.id !== (matchedTx?.id))
+    if (remaining.length === 0) {
+      await deleteHolding(pool_id, code)
+    } else {
+      let totalBuyQty = 0, totalBuyAmt = 0
+      for (const tx of remaining) {
+        if (tx.type === 'buy') { totalBuyQty += tx.quantity; totalBuyAmt += tx.amount }
+      }
+      const netQty = remaining.reduce((s, tx) => s + (tx.type === 'buy' ? tx.quantity : -tx.quantity), 0)
+      const costPrice = totalBuyQty > 0 ? totalBuyAmt / totalBuyQty : 0
+      if (netQty <= 0) {
+        await deleteHolding(pool_id, code)
+      } else {
+        await upsertHolding({
+          pool_id, stock_code: code,
+          stock_name: matchedTx?.stock_name || '',
+          quantity: netQty, cost_price: costPrice
+        })
+      }
+    }
+    await holdingStore.loadHoldings()
+
+    // 最后删资金记录 + 刷新
+    await deleteCapitalLog(id)
+    await logDelete('capital_log', id, `${capType} ${amount} ${note || ''}`)
+    await fundStore.loadCapitalLogs()
+  } catch (e) {
+    console.error('Delete cascade error:', e)
+  }
+  const { saveCurrentPositionSnapshot } = await import('@/utils/positionSnapshot')
+  saveCurrentPositionSnapshot().catch(e => console.error('Position snapshot:', e))
+}
+
+function parseStockCode2(note) {
+  if (!note) return ''
+  const parts = note.split(' ')
+  return parts.length > 1 && /^\d{6}$/.test(parts[parts.length - 1]) ? parts[parts.length - 1] : ''
+}
+
+onMounted(async () => {
+  try {
+    await Promise.all([
+      poolStore.loadPools(),
+      holdingStore.loadHoldings(),
+      fundStore.loadCapitalLogs(),
+      loadAllocation()
+    ])
+    const codes = holdingStore.stockCodes
+    if (codes.length) await priceStore.loadPrices(codes)
+  } catch (e) {
+    console.error('Fund page load error:', e)
+  } finally {
+    loading.value = false
+  }
+})
+</script>
+

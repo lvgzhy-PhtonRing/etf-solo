@@ -1,0 +1,400 @@
+// src/api/stock.js
+// 行情接口：优先调用 Supabase Edge Function，降级到 JSONP
+// 缓存: 股票名称永久缓存, 价格60分钟过期
+// 搜索: 本地 stocks.json 优先（毫秒级），降级到远程 suggest API
+
+const PRICE_MAX_AGE = 60 * 60 * 1000
+let nameCache = {}
+let priceCache = {}
+let cacheTime = {}
+
+function isStale(code) {
+  return !cacheTime[code] || (Date.now() - cacheTime[code] > PRICE_MAX_AGE)
+}
+
+// ========== 本地股票列表（懒加载） ==========
+const STOCKS_JSON_PATH = import.meta.env.BASE_URL + 'stocks.json'
+let stockList = null       // 加载后的数组 [{c, n, p, f, m}, ...]
+let stockListPromise = null
+
+async function ensureStockList() {
+  if (stockList) return stockList
+  if (stockListPromise) return stockListPromise
+  stockListPromise = fetch(STOCKS_JSON_PATH)
+    .then(r => r.json())
+    .then(data => {
+      stockList = data.s || []
+      return stockList
+    })
+    .catch(() => {
+      console.warn('[stock] 本地股票列表加载失败，回退到远程搜索')
+      stockList = null  // 标记加载失败，走远程降级
+      stockListPromise = null
+      return null
+    })
+  return stockListPromise
+}
+
+function scoreStock(s, q, isDigits) {
+  let score = 0
+  if (isDigits) {
+    // 纯数字：匹配代码前缀
+    if (s.c === q) score = 100
+    else if (s.c.startsWith(q)) score = q.length * 15
+  } else {
+    // 文字/拼音：多层匹配
+    if (s.n === q) score = Math.max(score, 95)           // 名称完全匹配
+    if (s.n.startsWith(q)) score = Math.max(score, 85)   // 名称前缀
+    if (s.n.includes(q)) score = Math.max(score, 75)     // 名称包含
+    if (s.p.startsWith(q)) score = Math.max(score, 70)   // 全拼前缀
+    if (s.f === q) score = Math.max(score, 65)           // 首字母完全匹配
+    if (s.p.includes(q)) score = Math.max(score, 60)     // 全拼包含
+    if (s.f.startsWith(q)) score = Math.max(score, 55)   // 首字母前缀
+    if (s.f.includes(q)) score = Math.max(score, 45)     // 首字母包含
+  }
+  return score
+}
+
+function searchLocalStocks(query) {
+  if (!stockList) return null  // null = 尚未加载完成，调用方应等待或降级
+  const q = query.toLowerCase().trim()
+  if (!q) return []
+
+  const results = []
+  const isDigits = /^\d+$/.test(q)
+
+  for (const s of stockList) {
+    const score = scoreStock(s, q, isDigits)
+    if (score > 0) {
+      results.push({ ...s, score })
+    }
+  }
+
+  // 按分数降序，取前 20 条
+  results.sort((a, b) => b.score - a.score)
+  return results.slice(0, 20).map(s => ({
+    stock_code: s.c,
+    stock_name: s.n,
+    market: s.m === 'sh' ? '沪' : '深'
+  }))
+}
+
+// 在给定股票代码集合内做首字母/名称/代码匹配（用于交易记录过滤，只联想已交易过的股票）
+export async function matchTradedStocks(codes, query) {
+  const list = await ensureStockList()
+  if (!list) return null  // 本地列表不可用，调用方降级为简单子串匹配
+  const q = query.toLowerCase().trim()
+  if (!q) return []
+
+  const byCode = {}
+  for (const s of list) byCode[s.c] = s
+  const isDigits = /^\d+$/.test(q)
+
+  const results = []
+  for (const code of codes) {
+    const s = byCode[code]
+    if (!s) continue
+    const score = scoreStock(s, q, isDigits)
+    if (score > 0) results.push({ stock_code: s.c, stock_name: s.n, score })
+  }
+
+  results.sort((a, b) => b.score - a.score)
+  return results
+}
+
+export function preloadStockList() {
+  ensureStockList()
+}
+
+// ========== 方法1: Supabase Edge Function ==========
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
+const EDGE_FN = SUPABASE_URL ? `${SUPABASE_URL}/functions/v1/stock-proxy` : null
+
+async function fetchViaEdge(codes) {
+  if (!EDGE_FN) return {}
+  const resp = await fetch(`${EDGE_FN}?codes=${codes.join(',')}`, {
+    headers: { 'Authorization': 'Bearer ' + (import.meta.env.VITE_SUPABASE_ANON_KEY || '') }
+  })
+  if (!resp.ok) return {}
+  const json = await resp.json()
+  const prices = json.data || {}
+  for (const code of Object.keys(prices)) {
+    if (prices[code]?.stock_name) nameCache[code] = prices[code].stock_name
+  }
+  return prices
+}
+
+// ========== 方法2: 新浪 JSONP (无 CORS 问题) ==========
+function sinaQuoteSymbol(code) {
+  return /^[569]/.test(code) ? `sh${code}` : `sz${code}`
+}
+
+function fetchSinaJSONP(codes) {
+  return new Promise((resolve) => {
+    const formatted = codes.map(sinaQuoteSymbol).join(',')
+
+    const script = document.createElement('script')
+    script.src = `https://hq.sinajs.cn/list=${formatted}&t=${Date.now()}`
+    script.charset = 'gb18030'
+    const timer = setTimeout(() => { cleanup(); resolve({}) }, 8000)
+
+    function cleanup() {
+      clearTimeout(timer)
+      if (script.parentNode) document.body.removeChild(script)
+    }
+
+    script.onload = () => {
+      cleanup()
+      const prices = {}
+      for (const code of codes) {
+        const key = `hq_str_${sinaQuoteSymbol(code)}`
+        const raw = window[key]
+        if (!raw) continue
+        const f = String(raw).split(',')
+        if (f.length < 10) continue
+        let name = f[0] || ''
+        try { name = decodeURIComponent(escape(name)) } catch (e) {}
+        name = name.replace(/[^\w一-鿿（）]/g, '').trim()
+        if (name) nameCache[code] = name
+        const price = parseFloat(f[3]) || 0
+        const prevClose = parseFloat(f[2]) || 0
+        prices[code] = {
+          stock_code: code, stock_name: name, price, prev_close: prevClose,
+          high: parseFloat(f[4]) || 0, low: parseFloat(f[5]) || 0,
+          volume: parseInt(f[8]) || 0, amount: parseFloat(f[9]) || 0,
+          change_pct: prevClose > 0 ? ((price - prevClose) / prevClose * 100).toFixed(2) : '0',
+          updated_at: new Date().toISOString()
+        }
+        // 不 delete：新浪 var 声明的全局同样可能不可配置（手机 Chrome 严格模式抛错），改赋空防旧数据残留
+        try { window[key] = undefined } catch (e) {}
+      }
+      resolve(prices)
+    }
+    script.onerror = () => { cleanup(); resolve({}) }
+    document.body.appendChild(script)
+  })
+}
+
+// ========== 对外开放接口 ==========
+
+export async function fetchStockPrices(codes) {
+  const cleanCodes = [...new Set(codes.filter(c => /^\d{6}$/.test(c)))]
+  if (!cleanCodes.length) return {}
+
+  const needFetch = cleanCodes.filter(c => !priceCache[c] || isStale(c))
+  if (needFetch.length === 0) {
+    const r = {}; for (const c of cleanCodes) if (priceCache[c]) r[c] = priceCache[c]; return r
+  }
+
+  // 优先用 Edge Function
+  let fresh = await fetchViaEdge(needFetch).catch(() => ({}))
+
+  // Edge Function 未部署、失败或未返回部分代码时，用 JSONP 补齐
+  const missing = needFetch.filter(code => !fresh[code])
+  if (missing.length) {
+    const fallback = await fetchSinaJSONP(missing).catch(() => ({}))
+    fresh = { ...fresh, ...fallback }
+  }
+
+  const now = Date.now()
+  for (const code of needFetch) {
+    if (fresh[code]) { priceCache[code] = fresh[code]; cacheTime[code] = now }
+  }
+
+  const result = {}
+  for (const code of cleanCodes) result[code] = priceCache[code] || null
+  return result
+}
+
+export async function fetchStockPrice(code) {
+  if (!/^\d{6}$/.test(code)) return null
+  if (nameCache[code] && priceCache[code] && !isStale(code)) return priceCache[code]
+  const result = await fetchStockPrices([code])
+  return result[code] || (nameCache[code] ? { stock_code: code, stock_name: nameCache[code], price: 0 } : null)
+}
+
+export function clearPriceCache() {
+  cacheTime = {}; priceCache = {}
+}
+
+// 强制刷新单只现价（绕过缓存），供 K线弹窗等场景实时取价；成功时更新缓存并返回
+export async function refreshStockPrice(code) {
+  if (!/^\d{6}$/.test(code)) return null
+  let fresh = await fetchViaEdge([code]).catch(() => ({}))
+  if (Object.keys(fresh).length === 0) {
+    fresh = await fetchSinaJSONP([code]).catch(() => ({}))
+  }
+  const d = fresh[code]
+  if (d && d.price) {
+    priceCache[code] = d
+    cacheTime[code] = Date.now()
+    return d
+  }
+  return null
+}
+
+// ========== K线数据（新浪 JSONP） ==========
+// 端点：jsonp_v2.php/{callback}/CN_MarketDataService.getKLineData
+// 非 JSONP 的 json_v2.php 无 CORS 头，浏览器只能走 script 标签
+const KLINE_MAX_AGE = 30 * 60 * 1000
+const KLINE_SCALE = { day: 240, week: 1200, month: 7200 }
+const KLINE_DATALEN = { day: 500, week: 250, month: 120 }
+let klineCache = {}
+let klineCacheTime = {}
+
+function fetchKLineJSONP(symbol, period) {
+  return new Promise((resolve) => {
+    const cb = `kline_cb_${Date.now()}_${Math.floor(Math.random() * 1e6)}`
+    const url = `https://quotes.sina.cn/cn/api/jsonp_v2.php/${cb}/CN_MarketDataService.getKLineData?symbol=${symbol}&scale=${KLINE_SCALE[period]}&ma=no&datalen=${KLINE_DATALEN[period]}`
+    const script = document.createElement('script')
+    let done = false
+
+    function cleanup() {
+      if (done) return
+      done = true
+      clearTimeout(timer)
+      delete window[cb]
+      if (script.parentNode) document.body.removeChild(script)
+    }
+
+    const timer = setTimeout(() => { cleanup(); resolve([]) }, 10000)
+    window[cb] = (data) => { cleanup(); resolve(Array.isArray(data) ? data : []) }
+    script.onerror = () => { cleanup(); resolve([]) }
+    script.src = url
+    document.body.appendChild(script)
+  })
+}
+
+async function fetchKLineBySymbol(symbol, period) {
+  const key = `${symbol}_${period}`
+  if (klineCache[key] && Date.now() - klineCacheTime[key] < KLINE_MAX_AGE) {
+    return klineCache[key]
+  }
+
+  const raw = await fetchKLineJSONP(symbol, period)
+  const data = raw
+    .filter(r => r && r.day && r.open)
+    .map(r => {
+      const ts = Date.parse(`${r.day}T00:00:00+08:00`)
+      return {
+        timestamp: isNaN(ts) ? 0 : ts,
+        open: parseFloat(r.open) || 0,
+        high: parseFloat(r.high) || 0,
+        low: parseFloat(r.low) || 0,
+        close: parseFloat(r.close) || 0,
+        volume: parseInt(r.volume) || 0
+      }
+    })
+    .filter(d => d.timestamp > 0)
+    .sort((a, b) => a.timestamp - b.timestamp)
+
+  if (data.length) {
+    klineCache[key] = data
+    klineCacheTime[key] = Date.now()
+  }
+  return data
+}
+
+export function fetchKLine(code, period = 'day') {
+  if (!/^\d{6}$/.test(code)) return Promise.resolve([])
+  return fetchKLineBySymbol(sinaQuoteSymbol(code), period)
+}
+
+// 沪深交易日以指数日线为准，避免将节假日误当作交易日。
+export function fetchMarketDailyBars() {
+  return fetchKLineBySymbol('sh000001', 'day')
+}
+
+export function clearKLineCache() {
+  klineCache = {}; klineCacheTime = {}
+}
+
+// ========== 拼音/名称联想 ==========
+const SUGGEST_MAX_AGE = 2 * 60 * 1000
+let suggestCache = {}
+let suggestCacheTime = {}
+
+async function fetchSuggestViaEdge(key) {
+  if (!EDGE_FN) return []
+  const resp = await fetch(`${EDGE_FN}?key=${encodeURIComponent(key)}`, {
+    headers: { 'Authorization': 'Bearer ' + (import.meta.env.VITE_SUPABASE_ANON_KEY || '') }
+  })
+  if (!resp.ok) return []
+  const json = await resp.json()
+  const suggestions = json.suggestions || []
+  for (const s of suggestions) {
+    if (s.stock_name) nameCache[s.stock_code] = s.stock_name
+  }
+  return suggestions
+}
+
+function fetchSuggestJSONP(key) {
+  return new Promise((resolve) => {
+    const script = document.createElement('script')
+    script.src = `https://suggest3.sinajs.cn/suggest/type=11,12,13,14,15&key=${encodeURIComponent(key)}&t=${Date.now()}`
+    script.charset = 'gb18030'
+    const timer = setTimeout(() => { cleanup(); resolve([]) }, 8000)
+
+    function cleanup() {
+      clearTimeout(timer)
+      if (script.parentNode) document.body.removeChild(script)
+      // 不 delete（同 Data_netWorthTrend 原因），改赋空
+      try { window.suggestvalue = undefined } catch (e) {}
+    }
+
+    // Sina suggest 返回 var suggestvalue="..." 声明全局变量，不是 JSONP callback
+    script.onload = () => {
+      cleanup()
+      const raw = window.suggestvalue
+      if (!raw) { resolve([]); return }
+      const suggestions = []
+      const entries = String(raw).split(';').filter(e => e.trim())
+      for (const entry of entries) {
+        const parts = entry.split(',')
+        const name = parts[0] || ''
+        const type = parts[1] || ''
+        const code = parts[2] || ''
+        if (!/^\d{6}$/.test(code)) continue
+        if (type !== '11' && type !== '12') continue
+        try {
+          const decoded = decodeURIComponent(escape(name))
+          if (decoded) nameCache[code] = decoded.replace(/[^\w一-鿿（）]/g, '').trim()
+        } catch (e) {}
+        suggestions.push({
+          stock_code: code,
+          stock_name: nameCache[code] || name,
+          market: type === '11' ? '沪' : '深'
+        })
+      }
+      resolve(suggestions)
+    }
+
+    script.onerror = () => { cleanup(); resolve([]) }
+    document.body.appendChild(script)
+  })
+}
+
+export async function fetchStockSuggestions(key) {
+  if (!key || !key.trim()) return []
+  const k = key.trim()
+
+  // 优先本地搜索（毫秒级）
+  const list = await ensureStockList()
+  if (list) {
+    return searchLocalStocks(k) || []
+  }
+
+  // 降级：本地列表未加载成功，走远程 API
+  if (suggestCache[k] && (Date.now() - suggestCacheTime[k] < SUGGEST_MAX_AGE)) {
+    return suggestCache[k]
+  }
+
+  let suggestions = await fetchSuggestViaEdge(k).catch(() => [])
+  if (!suggestions.length) {
+    suggestions = await fetchSuggestJSONP(k).catch(() => [])
+  }
+
+  suggestCache[k] = suggestions
+  suggestCacheTime[k] = Date.now()
+  return suggestions
+}

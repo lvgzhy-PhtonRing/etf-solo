@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#faf7f2">
+  <title>我的股票账本</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <script>
+    // 诊断层：JS 出错/未捕获 Promise 时浮一个红框显示真实错误，不清空 #app，点 × 关闭
+    (function () {
+      function show(kind, msg, stack) {
+        var d = document.createElement('div');
+        d.setAttribute('style', 'position:fixed;left:8px;right:8px;top:8px;max-height:55vh;padding:14px;background:#150b2e;color:#ff6b6b;font:11px/1.5 Consolas,monospace;white-space:pre-wrap;overflow:auto;z-index:2147483647;border:1px solid #ff6b6b;border-radius:8px;');
+        d.textContent = '[' + kind + ']\n\n' + (msg || '(no message)') + '\n\n' + (stack || '');
+        var b = document.createElement('div');
+        b.textContent = '\u00d7';
+        b.setAttribute('style', 'position:absolute;top:2px;right:8px;color:#a7a3c8;cursor:pointer;font-size:16px;padding:2px 6px;');
+        b.onclick = function () { d.remove(); };
+        d.appendChild(b);
+        document.body.appendChild(d);
+      }
+      window.__errOverlay = show;
+      window.addEventListener('error', function (e) {
+        var err = e.error || e;
+        show('ERROR ' + (e.lineno || '?') + ':' + (e.colno || '?'), err && err.message || e.message || String(e), err && err.stack || '');
+      });
+      window.addEventListener('unhandledrejection', function (e) {
+        var r = e.reason;
+        show('REJECTION', r && (r.message || String(r)) || String(r), r && r.stack || '');
+      });
+    })();
+  </script>
+</head>
+<body>
+  <div id="app"></div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

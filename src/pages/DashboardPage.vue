@@ -1,0 +1,381 @@
+<!-- src/pages/DashboardPage.vue -->
+<template>
+  <div class="page dashboard-page">
+    <div class="page-header">
+      <span class="page-title">持仓总览<span class="title-en">Holdings Overview</span></span>
+    </div>
+
+    <!-- 账户总资产模块（渐变高光签名卡） -->
+    <div class="section-card account-hero edge-accent">
+      <LoadingSkeleton v-if="loading" :count="1" />
+      <AccountSummary
+        v-else
+        :total-asset="summary.totalAsset"
+        :market-value="summary.totalMarketValue"
+        :available="summary.totalAvailable"
+        :position-ratio="summary.positionRatio"
+        :float-pnl="summary.floatPnl"
+        :daily-pnl="summary.dailyPnl"
+        :price-update-time="priceTimeText"
+      />
+    </div>
+
+    <!-- 快捷入口 -->
+    <div class="action-bar">
+      <button class="act-btn" @click="showBuySheet = true">买入股票</button>
+      <button class="act-btn" @click="showRecordsSheet = true">交易记录</button>
+    </div>
+
+    <!-- 持仓模块（池筛选 + 持仓股票列表） -->
+    <div class="section-card holdings-module edge-accent">
+      <PoolSelector
+        :pools="poolStore.pools"
+        :current="poolStore.currentPoolId"
+        @select="poolStore.setCurrentPool"
+      />
+
+      <div class="section-title">
+        <span class="section-title-left">
+          <span class="title-accent title-accent--accent"></span>
+          <span>持仓股票</span>
+          <span class="swipe-hint">◀ 左滑卖出</span>
+          <button v-if="displayHoldings.length" class="kline-hint" @click="openKLine(displayHoldings[0])">⛶ 点看K线</button>
+        </span>
+        <span class="stock-count">{{ displayHoldings.length }} 只</span>
+      </div>
+
+      <LoadingSkeleton v-if="loading" :count="3" />
+
+      <EmptyState
+        v-else-if="!displayHoldings.length"
+        icon="&#x1F4ED;"
+        text="暂无持仓"
+      />
+
+      <template v-else>
+        <HoldingCard
+          v-for="h in displayHoldings"
+          :key="h.merged ? 'merged-' + h.stock_code : `${h.pool_id}-${h.stock_code}`"
+          :stock="h"
+          :pool-name="h.merged ? '' : (poolNameMap[h.pool_id] || '')"
+          :pool-color="h.merged ? '#888888' : (poolColorMap[h.pool_id] || '#4d9fff')"
+          :pool-tags="h.merged ? h.poolNames : []"
+          @tap="openKLine(h)"
+          @sell="onSellStock"
+        />
+      </template>
+    </div>
+
+    <KLineOverlay
+      v-if="klineStock"
+      :stock="klineStock"
+      @close="klineStock = null"
+    />
+
+    <BuySheet v-model="showBuySheet" @changed="onTradeChanged" />
+    <SellSheet v-model="showSellSheet" :stock="sellStock" @changed="onTradeChanged" />
+    <TradeRecordsSheet v-model="showRecordsSheet" @changed="onTradeChanged" />
+  </div>
+
+</template>
+
+<script setup>
+import { ref, computed, onMounted } from 'vue'
+import { usePoolStore } from '@/stores/pools'
+import { useHoldingStore } from '@/stores/holdings'
+import { usePriceStore } from '@/stores/prices'
+import { useFundStore } from '@/stores/funds'
+import { loadPoolAllocation } from '@/api/supabase'
+import { calcProfit, calcPositionRatio } from '@/utils/calculators'
+import AccountSummary from '@/components/dashboard/AccountSummary.vue'
+import HoldingCard from '@/components/dashboard/HoldingCard.vue'
+import PoolSelector from '@/components/common/PoolSelector.vue'
+import LoadingSkeleton from '@/components/common/LoadingSkeleton.vue'
+import EmptyState from '@/components/common/EmptyState.vue'
+import KLineOverlay from '@/components/kline/KLineOverlay.vue'
+import BuySheet from '@/components/trade/BuySheet.vue'
+import SellSheet from '@/components/trade/SellSheet.vue'
+import TradeRecordsSheet from '@/components/trade/TradeRecordsSheet.vue'
+
+const poolStore = usePoolStore()
+const holdingStore = useHoldingStore()
+const priceStore = usePriceStore()
+const fundStore = useFundStore()
+const loading = ref(true)
+const klineStock = ref(null)
+const showBuySheet = ref(false)
+const showSellSheet = ref(false)
+const showRecordsSheet = ref(false)
+const sellStock = ref(null)
+
+// 子池名称/颜色映射
+const poolNameMap = {}
+const poolColorMap = {}
+const colorList = ['#4d9fff', '#ff4d6d', '#00f0a8', '#ffd23f', '#b18cff']
+
+onMounted(async () => {
+  try {
+    try { allocConfig.value = await loadPoolAllocation() } catch (e) {}
+    await Promise.all([
+      poolStore.loadPools(),
+      holdingStore.loadHoldings(),
+      fundStore.loadCapitalLogs()
+    ])
+
+    poolStore.pools.forEach((p, i) => {
+      poolNameMap[p.id] = p.name
+      poolColorMap[p.id] = colorList[i % colorList.length]
+    })
+
+    const codes = holdingStore.stockCodes
+    if (codes.length) {
+      await priceStore.loadPrices(codes)
+    } else {
+      await priceStore.loadFromCache()
+    }
+  } catch (e) {
+    console.error('Dashboard load error:', e)
+  } finally {
+    loading.value = false
+  }
+})
+
+// 真实行情更新时间（价格拉取完成时刻）
+const priceTimeText = computed(() => {
+  if (!priceStore.lastUpdated) return ''
+  const d = new Date(priceStore.lastUpdated)
+    return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+})
+
+// 打开 K 线：成本线统一取跨池加权均价，与子池筛选无关
+function openKLine(h) {
+  const rows = holdingStore.holdings.filter(x => x.stock_code === h.stock_code)
+  const totalQty = rows.reduce((s, x) => s + x.quantity, 0)
+  const cost = totalQty > 0
+    ? rows.reduce((s, x) => s + x.cost_price * x.quantity, 0) / totalQty
+    : (h.cost_price || 0)
+  const priceData = priceStore.prices[h.stock_code] || {}
+  klineStock.value = {
+    ...h,
+    cost_price: cost,
+    currentPrice: priceData.price || h.currentPrice || 0,
+    changePct: priceData.change_pct || h.changePct || 0
+  }
+}
+
+// 快捷入口：三个半屏弹层，承载原交易页的买入/卖出/记录三个流程
+function onSellStock(stock) {
+  sellStock.value = {
+    code: stock.stock_code,
+    name: stock.stock_name,
+    price: stock.currentPrice || stock.cost_price
+  }
+  showSellSheet.value = true
+}
+
+async function onTradeChanged() {
+  try {
+    const { refreshHistoricalSnapshots } = await import('@/utils/historicalSnapshots')
+    refreshHistoricalSnapshots({ afterLedgerChange: true }).catch(e => console.warn('历史快照暂未更新：', e))
+    await Promise.all([holdingStore.loadHoldings(), fundStore.loadCapitalLogs()])
+    const codes = holdingStore.stockCodes
+    if (codes.length) {
+      await priceStore.loadPrices(codes)
+    } else {
+      await priceStore.loadFromCache()
+    }
+    const { saveCurrentPositionSnapshot } = await import('@/utils/positionSnapshot')
+    await saveCurrentPositionSnapshot().catch(e => console.error('Snapshot:', e))
+  } catch (e) {
+    console.error('Trade changed refresh error:', e)
+  }
+}
+
+const displayHoldings = computed(() => {
+  const poolId = poolStore.currentPoolId
+  let filtered = holdingStore.holdings
+
+  if (poolId !== null) {
+    filtered = filtered.filter(h => h.pool_id === poolId)
+    return filtered.map(h => {
+      const priceData = priceStore.prices[h.stock_code] || {}
+      const currentPrice = priceData.price || h.cost_price || 0
+      const stockName = priceData.stock_name || h.stock_name || ''
+      return {
+        ...h,
+        merged: false,
+        stock_name: stockName,
+        currentPrice,
+        changePct: priceData.change_pct || 0,
+        marketValue: currentPrice * h.quantity,
+        profit: calcProfit(currentPrice, h.cost_price, h.quantity)
+      }
+    }).sort((a, b) => b.marketValue - a.marketValue)
+  }
+
+  // 总账户模式：相同股票跨子池合并
+  const merged = {}
+  for (const h of filtered) {
+    if (!merged[h.stock_code]) {
+      merged[h.stock_code] = { ...h, totalQty: 0, totalCost: 0, poolCount: 0, poolNames: [] }
+    }
+    merged[h.stock_code].totalQty += h.quantity
+    merged[h.stock_code].totalCost += h.cost_price * h.quantity
+    merged[h.stock_code].poolCount++
+    const pn = poolNameMap[h.pool_id]
+    const pc = poolColorMap[h.pool_id]
+    if (pn && !merged[h.stock_code].poolNames.some(t => t.name === pn)) {
+      merged[h.stock_code].poolNames.push({ name: pn, color: pc || '#888' })
+    }
+  }
+  // 固定子池显示顺序：公共池 → 春 → 维 → 队 → 回
+  const POOL_NAME_ORDER = ['公共池', '春', '维', '队', '回']
+  for (const m of Object.values(merged)) {
+    m.poolNames.sort((a, b) => POOL_NAME_ORDER.indexOf(a.name) - POOL_NAME_ORDER.indexOf(b.name))
+  }
+
+  return Object.values(merged).map(m => {
+    const priceData = priceStore.prices[m.stock_code] || {}
+    const currentPrice = priceData.price || m.cost_price || 0
+    const stockName = priceData.stock_name || m.stock_name || ''
+    const avgCost = m.totalQty > 0 ? m.totalCost / m.totalQty : 0
+    return {
+      ...m,
+      merged: true,
+      stock_name: stockName,
+      currentPrice,
+      changePct: priceData.change_pct || 0,
+      quantity: m.totalQty,
+      cost_price: avgCost,
+      marketValue: currentPrice * m.totalQty,
+      profit: calcProfit(currentPrice, avgCost, m.totalQty),
+      pool_id: null  // 无对应单子池
+    }
+}).sort((a, b) => b.marketValue - a.marketValue)
+})
+
+const totalCapital = computed(() => fundStore.totalCapital)
+const allocConfig = ref(null)
+
+const summary = computed(() => {
+  const holdings = displayHoldings.value
+  const totalMarketValue = holdings.reduce((s, h) => s + h.marketValue, 0)
+  const totalCost = holdings.reduce((s, h) => s + h.cost_price * h.quantity, 0)
+  const floatPnl = totalMarketValue - totalCost
+
+  // 总仓位与仓位页定义一致：全局市值 / 全局总资产（不受当前池筛选影响）
+  const globalMarketValue = holdingStore.holdings.reduce((s, h) => {
+    const price = priceStore.prices[h.stock_code]?.price || 0
+    return s + price * h.quantity
+  }, 0)
+  const globalTotalAsset = globalMarketValue + fundStore.totalAvailable
+  const positionRatio = calcPositionRatio(globalMarketValue, globalTotalAsset)
+
+  const currentPoolId = poolStore.currentPoolId
+  let totalAvailable
+  if (currentPoolId !== null) {
+    // 单池模式：按池过滤现金流 + 池初始分配
+    const pool = poolStore.pools.find(p => p.id === currentPoolId)
+    // 四人合计分配：从 allocConfig 读取，未配置时为 0（避免错误写入 44w 固定值）
+    const fourAlloc = poolStore.pools
+      .filter(p => p.name !== '公共池')
+      .reduce((sum, p) => sum + (allocConfig.value?.[p.name] ?? 0), 0)
+    const poolInitial = pool?.name === '公共池'
+      ? totalCapital.value - fourAlloc
+      : (allocConfig.value?.[pool.name] ?? 0)
+    const poolSellIn = fundStore.capitalLogs
+      .filter(l => l.pool_id === currentPoolId && l.type === 'add')
+      .reduce((s, l) => s + l.amount, 0)
+    const poolBuyOut = fundStore.capitalLogs
+      .filter(l => l.pool_id === currentPoolId && l.type === 'remove')
+      .reduce((s, l) => s + l.amount, 0)
+    totalAvailable = poolInitial + poolSellIn - poolBuyOut
+  } else {
+    // 总账户模式
+    totalAvailable = fundStore.totalAvailable
+  }
+
+  // 总资产 = 总市值 + 总可用资金（真实资产 = 持仓价值 + 现金）
+  const totalAsset = totalMarketValue + totalAvailable
+  return {
+    totalAsset,
+    totalMarketValue,
+    totalAvailable,
+    positionRatio,
+    floatPnl,
+    dailyPnl: holdings.reduce((s, h) => {
+      const prevClose = priceStore.prices[h.stock_code]?.prev_close
+      if (prevClose && prevClose > 0) return s + (h.currentPrice - prevClose) * h.quantity
+      return s
+    }, 0)
+  }
+})
+</script>
+
+<style scoped>
+.account-hero {
+  padding: 12px 16px;
+  background: linear-gradient(150deg, rgba(143,111,255,.16), rgba(255,77,109,.08) 60%, rgba(255,255,255,.04));
+  border: 1px solid rgba(255,255,255,.16);
+  box-shadow: 0 10px 30px rgba(0,0,0,.25);
+}
+.action-bar {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.act-btn {
+  flex: 1;
+  height: 36px;
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: var(--radius-md);
+  background: rgba(255,255,255,0.06);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.act-btn:active {
+  background: rgba(255,255,255,0.12);
+}
+.section-title {
+  display: flex; justify-content: space-between;
+  padding: 8px 0 6px; font-size: 13px; font-weight: 600;
+}
+.section-title-left { display: flex; align-items: center; gap: 8px; }
+.stock-count { font-size: 12px; color: var(--text-secondary); font-weight: 400; }
+.swipe-hint {
+  font-size: 11px;
+  background: linear-gradient(135deg, var(--color-rise), #ff8a9a);
+  color: #fff;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  animation: hint-pulse 2s ease-in-out infinite;
+}
+@keyframes hint-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+.kline-hint {
+  font-size: 11px;
+  font-family: inherit;
+  line-height: 1.2;
+  color: #b18cff;
+  background: rgba(111,77,255,0.14);
+  border: 1px solid rgba(177,140,255,0.4);
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.kline-hint:active {
+  background: rgba(111,77,255,0.3);
+}
+</style>

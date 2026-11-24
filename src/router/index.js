@@ -1,0 +1,88 @@
+// src/router/index.js
+import { createRouter, createWebHashHistory } from 'vue-router'
+import { supabase } from '@/api/supabase'
+
+const routes = [
+  {
+    path: '/',
+    name: 'login',
+    component: () => import('@/pages/LoginPage.vue'),
+    meta: { requiresAuth: false }
+  },
+  {
+    path: '/',
+    component: () => import('@/components/common/MainLayout.vue'),
+    meta: { requiresAuth: true },
+    children: [
+      {
+        path: 'dashboard',
+        name: 'dashboard',
+        component: () => import('@/pages/DashboardPage.vue'),
+        meta: { title: '持仓' }
+      },
+      {
+        path: 'positions',
+        name: 'positions',
+        component: () => import('@/pages/PositionsPage.vue'),
+        meta: { title: '仓位' }
+      },
+      {
+        path: 'trends',
+        name: 'trends',
+        component: () => import('@/pages/TrendsPage.vue'),
+        meta: { title: '趋势' }
+      },
+      {
+        path: 'netvalue',
+        name: 'netvalue',
+        component: () => import('@/pages/NetValuePage.vue'),
+        meta: { title: '净值走势' }
+      },
+      {
+        path: 'trend',
+        name: 'trend',
+        component: () => import('@/pages/TrendPage.vue'),
+        meta: { title: '趋势' }
+      },
+      {
+        path: 'fund',
+        name: 'fund',
+        component: () => import('@/pages/FundPage.vue'),
+        meta: { title: '资本' }
+      },
+      {
+        path: 'settings',
+        name: 'settings',
+        component: () => import('@/pages/SettingsPage.vue'),
+        meta: { title: '设置' }
+      }
+    ]
+  }
+]
+
+const router = createRouter({
+  history: createWebHashHistory(),
+  routes
+})
+
+let sessionChecked = false
+
+router.beforeEach(async (to, from, next) => {
+  let isAuthenticated = false
+  try {
+    const { data } = await supabase.auth.getSession()
+    isAuthenticated = !!data.session
+  } catch {
+    isAuthenticated = false
+  }
+
+  if (to.meta.requiresAuth && !isAuthenticated) {
+    next({ name: 'login' })
+  } else if (to.name === 'login' && isAuthenticated) {
+    next({ name: 'dashboard' })
+  } else {
+    next()
+  }
+})
+
+export default router
