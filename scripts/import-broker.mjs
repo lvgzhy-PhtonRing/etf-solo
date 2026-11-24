@@ -1,4 +1,7 @@
-// scripts/import-broker.mjs — 券商流水 → 股票大 Tab 数据
+// scripts/import-broker.mjs — 2026 期初券商流水导入（存档）
+//
+// 注意：01.txt…06.txt 已被 2024-2025 历史流水替换；本脚本仅用于最初 2026 期初导入。
+//       当前账本追加历史请用 import-broker-history.mjs，勿重跑本脚本。
 //
 // 用法：
 //   node scripts/import-broker.mjs --dry-run

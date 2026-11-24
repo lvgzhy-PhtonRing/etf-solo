@@ -1,5 +1,7 @@
-// scripts/audit-broker-data.mjs — 导入数据与券商逐笔核对
+// scripts/audit-broker-data.mjs — 2026 期初导入审计（存档）
 // 用法：node scripts/audit-broker-data.mjs
+// 说明：01.txt…06.txt 已被 2024-2025 历史流水替换，本脚本仅保留 2026 期初导入的核对口径。
+//       当前合并账本请用 audit-history-import.mjs。
 // 数据源：~/Documents/01.txt…06.txt（券商资金流水）+ 最终持仓截图数值（内置）
 import fs from 'node:fs'
 import os from 'node:os'
