@@ -48,6 +48,7 @@ import { ref, computed, onMounted } from 'vue'
 import { formatMoney } from '@/utils/formatters'
 import { fetchPositionSnapshots } from '@/api/supabase'
 import { marketDate } from '@/utils/historicalSnapshotLedger'
+import { snapshotOnOrBefore } from '@/utils/snapshotLookup'
 import { useHoldingStore } from '@/stores/holdings'
 import { usePriceStore } from '@/stores/prices'
 import { useFundStore } from '@/stores/funds'
@@ -90,7 +91,7 @@ const currentNav = computed(() => {
   return inv > 0 && currentAsset.value > 0 ? currentAsset.value / inv : null
 })
 
-const navDate = computed(() => (latest.value ? latest.value.date : '—'))
+const navDate = computed(() => currentNav.value !== null ? marketDate() : (latest.value ? latest.value.date : '—'))
 
 const navText = computed(() => (currentNav.value === null ? '—' : currentNav.value.toFixed(4)))
 
@@ -131,21 +132,13 @@ function shiftMonths(dateStr, months) {
   return toStr(d)
 }
 
-function assetOnOrBefore(dateStr) {
-  let res = null
-  for (const s of snapshots.value) {
-    if (s.date <= dateStr) res = s
-  }
-  return res ? res.asset : null
-}
-
 const periodReturns = computed(() => {
   const last = latest.value
   const navNow = currentNav.value
   if (!last || navNow === null) return PERIODS.map(it => ({ ...it, value: null }))
   return PERIODS.map(it => {
     const target = shiftMonths(last.date, it.months)
-    const past = assetOnOrBefore(target)
+    const past = snapshotOnOrBefore(snapshots.value, target)
     if (!past) return { ...it, value: null }
     const inv = investedAt(past.date)
     if (!(inv > 0)) return { ...it, value: null }
