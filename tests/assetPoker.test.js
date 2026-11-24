@@ -59,7 +59,14 @@ describe('assetPoker（德州战绩）', () => {
   it('周期键：日 / 周 / 月', () => {
     expect(pokerPeriodKey('2026-11-24', 'day')).toBe('2026-11-24')
     expect(pokerPeriodKey('2026-11-24', 'week')).toBe('2026-11-22')
+    expect(pokerPeriodKey('2026-11-23', 'week')).toBe('2026-11-22')
     expect(pokerPeriodKey('2026-11-24', 'month')).toBe('2026-11')
+  })
+
+  it('周一边界保留旧程序的周键与标签', async () => {
+    expect(pokerPeriodKey('2026-11-23', 'week')).toBe('2026-11-22')
+    const { pokerWeekLabel } = await import('../src/utils/assetPoker')
+    expect(pokerWeekLabel('2026-11-22')).toBe('11/22-11/28')
   })
 
   it('按日聚合收入/支出/净盈亏', () => {

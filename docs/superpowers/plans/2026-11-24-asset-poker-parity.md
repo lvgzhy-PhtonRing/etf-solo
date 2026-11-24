@@ -74,7 +74,7 @@
 - [ ] **Step 3: Implement source-matched geometry and layout**
   - 普通图表恢复 200px 图表高度与 180px 蜡烛坐标区；零轴固定在坐标区中点，蜡烛高度、影线长度/方向和端帽按上方公式绘制。
   - 全屏复刻旧版：竖屏 172px 图表、6px 蜡烛/1px 影线；横屏图表高度 `calc(100dvh - 120px)` 且最小 200px、28px 蜡烛/4px 影线，柱体坐标仍按旧版 180px 数据坐标绘制。
-  - 保留全屏柱下“收/支”明细和旧版标签/数值字号；全屏将标题、汇总统计、关闭按钮排在同一标题栏，K线区域不重复显示汇总。
+  - 全屏柱下的信息顺序为“净盈亏→周期标签→收/支”，标题 13px；标题、汇总统计、关闭按钮位于同一标题栏，K线区域不重复显示汇总。
 - [ ] **Step 4: Re-run focused tests**
   - Run: `npm test -- tests/assetPokerChart.test.js`
   - Expected: 全部通过。

@@ -10,11 +10,11 @@
         <div class="kline-vol" :class="it.isUp ? 'up' : 'down'">
           {{ it.net >= 0 ? '+' : '' }}{{ fmt(it.net) }}
         </div>
+        <div class="kline-label">{{ labelOf(it.key) }}</div>
         <div v-if="fullscreen" class="kline-fs-detail">
           <span class="kfs-in">收 {{ fmt(it.income) }}</span>
           <span class="kfs-out">支 {{ fmt(it.expense) }}</span>
         </div>
-        <div class="kline-label">{{ labelOf(it.key) }}</div>
       </div>
     </div>
     <div v-if="!chart.items.length" class="kline-empty">暂无德州记录</div>

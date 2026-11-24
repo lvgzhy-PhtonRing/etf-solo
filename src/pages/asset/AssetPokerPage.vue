@@ -327,7 +327,7 @@ onMounted(() => {
   padding: 12px 16px; border-bottom: 1px solid var(--border-soft);
   flex-shrink: 0;
 }
-.fs-title { font-size: 15px; font-weight: 700; }
+.fs-title { font-size: 13px; font-weight: 700; }
 .fs-summary {
   display: flex; align-items: center; justify-content: center;
   gap: 12px; flex: 1; flex-wrap: wrap;
