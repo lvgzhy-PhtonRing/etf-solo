@@ -82,4 +82,27 @@ describe('fetchEtfNav', () => {
     const fetchImpl = vi.fn().mockResolvedValue({ ok: true, json: async () => [] })
     expect(await fetchEtfNav({ url: 'https://x', key: 'k', fetchImpl })).toBeNull()
   })
+
+  it('为请求设置超时中断信号', async () => {
+    let received
+    const fetchImpl = vi.fn((_url, opts) => {
+      received = opts
+      return Promise.resolve({ ok: true, json: async () => [{ date: '2026-07-29', asset: 848405 }] })
+    })
+    await fetchEtfNav({ url: 'https://x', key: 'k', fetchImpl, timeoutMs: 1000 })
+    expect(received.signal).toBeInstanceOf(AbortSignal)
+  })
+
+  it('超时后中止请求并返回 null', async () => {
+    let aborted = false
+    const fetchImpl = vi.fn((_url, opts) => new Promise((_resolve, reject) => {
+      opts.signal.addEventListener('abort', () => {
+        aborted = true
+        reject(new DOMException('Aborted', 'AbortError'))
+      })
+    }))
+    const out = await fetchEtfNav({ url: 'https://x', key: 'k', fetchImpl, timeoutMs: 20 })
+    expect(aborted).toBe(true)
+    expect(out).toBeNull()
+  })
 })

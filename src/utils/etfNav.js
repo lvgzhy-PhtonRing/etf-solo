@@ -10,8 +10,10 @@ export function mapEtfPosSnaps(rows) {
     .sort((a, b) => a.date.localeCompare(b.date))
 }
 
-export async function fetchEtfNav({ url, key, fetchImpl = fetch } = {}) {
+export async function fetchEtfNav({ url, key, fetchImpl = fetch, timeoutMs = 4000 } = {}) {
   if (!url || !key) return null
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
   try {
     const res = await fetchImpl(`${url}/rest/v1/rpc/get_etf_pos_snaps`, {
       method: 'POST',
@@ -20,12 +22,15 @@ export async function fetchEtfNav({ url, key, fetchImpl = fetch } = {}) {
         Authorization: `Bearer ${key}`,
         'Content-Type': 'application/json'
       },
-      body: '{}'
+      body: '{}',
+      signal: controller.signal
     })
     if (!res.ok) return null
     const points = mapEtfPosSnaps(await res.json())
     return points.length ? points : null
   } catch {
     return null
+  } finally {
+    clearTimeout(timer)
   }
 }
