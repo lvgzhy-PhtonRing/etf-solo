@@ -46,7 +46,7 @@
         class="holding-trades"
         :stock-code="stock.stock_code"
         :transactions="transactions"
-        :count="3"
+        :count="6"
       />
     </div>
     <template #right>

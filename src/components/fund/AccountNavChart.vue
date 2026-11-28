@@ -13,13 +13,13 @@
         <line v-for="t in yTicks" :key="'g' + t" :x1="PAD.left" :x2="W - PAD.right" :y1="yOf(t)" :y2="yOf(t)" class="nav-grid" />
         <line :x1="PAD.left" :x2="W - PAD.right" :y1="yOf(100)" :y2="yOf(100)" class="nav-base" />
         <line :x1="xOf(NAV_BASE_DATE)" :x2="xOf(NAV_BASE_DATE)" :y1="PAD.top" :y2="H - PAD.bottom" class="nav-base-date" />
-        <text :x="xOf(NAV_BASE_DATE)" :y="H - 6" text-anchor="middle" class="nav-base-label">7/19</text>
+        <text :x="xOf(NAV_BASE_DATE)" :y="H - 6" text-anchor="middle" class="nav-base-label">{{ baseShortLabel }}</text>
         <text v-for="t in yTicks" :key="'t' + t" :x="PAD.left - 6" :y="yOf(t) + 3" text-anchor="end" class="nav-tick">{{ t }}</text>
         <polyline v-for="s in series" :key="s.key" :points="pathOf(s)" fill="none" :stroke="s.color" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
-        <!-- 起始点 = 同心圆（同 ETF 版）；末端 = 实心点 -->
+        <!-- 起始点 = 同心圆（同 ETF 版）；账户线标在基准日 7/29（线段中间），其余线标在各自首个数据点 -->
         <template v-for="s in series" :key="'st' + s.key">
-          <circle :cx="firstX(s)" :cy="firstY(s)" r="5" fill="none" :stroke="s.color" stroke-width="1.5" />
-          <circle :cx="firstX(s)" :cy="firstY(s)" r="2.6" :fill="s.color" stroke="var(--bg-card)" stroke-width="1.2" />
+          <circle :cx="markX(s)" :cy="markY(s)" r="5" fill="none" :stroke="s.color" stroke-width="1.5" />
+          <circle :cx="markX(s)" :cy="markY(s)" r="2.6" :fill="s.color" stroke="var(--bg-card)" stroke-width="1.2" />
         </template>
         <circle v-for="s in series" :key="'d' + s.key" :cx="lastX(s)" :cy="lastY(s)" r="2.6" :fill="s.color" />
       </svg>
@@ -126,12 +126,24 @@ function lastX(s) {
 function lastY(s) {
   return yOf(s.points.at(-1).nav * 100)
 }
-function firstX(s) {
-  return xOf(s.points[0].date)
+// 圆圈标记点：账户线标在基准日（7/29，线段中间）；其他线标在各自首个数据点
+function markPoint(s) {
+  if (s.key === 'solo') {
+    return s.points.find(p => p.date >= NAV_BASE_DATE) || s.points[0]
+  }
+  return s.points[0]
 }
-function firstY(s) {
-  return yOf(s.points[0].nav * 100)
+function markX(s) {
+  return xOf(markPoint(s).date)
 }
+function markY(s) {
+  return yOf(markPoint(s).nav * 100)
+}
+
+const baseShortLabel = computed(() => {
+  const [, m, d] = NAV_BASE_DATE.split('-')
+  return `${Number(m)}/${Number(d)}`
+})
 
 const axisEnd = computed(() => {
   const d = new Date(tMax.value)
@@ -143,8 +155,8 @@ onMounted(async () => {
   try {
     const [snaps, etfRes, fundRes] = await Promise.all([
       fetchPositionSnapshots(500),
-      fetch(`${base}compare/etf_jinqiang.json`, { cache: 'no-store' }).then(r => r.ok ? r.json() : []).catch(() => []),
-      fetch(`${base}compare/fund_027730.json`, { cache: 'no-store' }).then(r => r.ok ? r.json() : []).catch(() => [])
+      fetch(`${base}compare/etf_jinqiang.json?v=${Date.now()}`, { cache: 'no-store' }).then(r => r.ok ? r.json() : []).catch(() => []),
+      fetch(`${base}compare/fund_027730.json?v=${Date.now()}`, { cache: 'no-store' }).then(r => r.ok ? r.json() : []).catch(() => [])
     ])
     solo.value = (snaps || []).filter(s => s.date >= NAV_CHART_START)
     etf.value = Array.isArray(etfRes) ? etfRes : []

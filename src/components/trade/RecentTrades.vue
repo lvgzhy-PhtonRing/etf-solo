@@ -5,7 +5,7 @@
       <span class="rt-date num-mono">{{ t.date }}</span>
       <span class="rt-side" :class="t.side === 'buy' ? 'rise' : 'fall'">{{ t.side === 'buy' ? '买入' : '卖出' }}</span>
       <span class="rt-qty num-mono">{{ formatQuantity(t.qty) }}股</span>
-      <span class="rt-price num-mono">@{{ t.price }}</span>
+      <span class="rt-price num-mono">@{{ Number(t.price).toFixed(2) }}</span>
     </div>
     <div v-if="!rows.length" class="rt-empty">暂无交易记录</div>
   </div>

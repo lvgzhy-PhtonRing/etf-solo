@@ -47,7 +47,7 @@
                 class="stock-trades"
                 :stock-code="s.code"
                 :transactions="transactions"
-                :count="5"
+                :count="6"
               />
             </template>
           </div>

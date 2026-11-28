@@ -10,11 +10,23 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const outDir = path.join(root, 'public/compare')
 fs.mkdirSync(outDir, { recursive: true })
 
-const ETF_BACKUP = process.argv.includes('--backup')
+const backupArg = process.argv.includes('--backup')
   ? process.argv[process.argv.indexOf('--backup') + 1]
-  : 'D:/Projects/ETF/etf-backup-2026-11-19-merged-monthly.json'
+  : ''
+// 未指定 --backup 时自动选 ETF 目录下最新的 etf-backup-*.json
+let ETF_BACKUP = backupArg
+if (!ETF_BACKUP) {
+  const dir = 'D:/Projects/ETF'
+  const latest = fs.readdirSync(dir)
+    .filter(f => /^etf-backup-.*\.json$/.test(f))
+    .map(f => ({ f, t: fs.statSync(path.join(dir, f)).mtimeMs }))
+    .sort((a, b) => b.t - a.t)[0]
+  if (!latest) throw new Error('未找到 ETF 备份文件（etf-backup-*.json）')
+  ETF_BACKUP = path.join(dir, latest.f)
+}
 const ETF_BASE_DATE = '2026-07-29'
 const ETF_BASE_ASSET = 848405
+console.log(`ETF 备份：${ETF_BACKUP}`)
 
 // ===== ETF 金枪不倒：app_config pos_snap → asset / 848405 =====
 const backup = JSON.parse(fs.readFileSync(ETF_BACKUP, 'utf8'))
