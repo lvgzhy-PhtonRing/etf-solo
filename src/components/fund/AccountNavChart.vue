@@ -46,6 +46,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { fetchPositionSnapshots } from '@/api/supabase'
 import { NAV_BASE_DATE, NAV_BASE_ASSET, NAV_BASE_LABEL, NAV_CHART_START } from '@/utils/navBase'
+import { fetchEtfNav } from '@/utils/etfNav'
 
 const W = 420
 const H = 220
@@ -150,12 +151,24 @@ const axisEnd = computed(() => {
   return `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 })
 
+async function loadEtfPoints() {
+  const base = import.meta.env.BASE_URL
+  const live = await fetchEtfNav({
+    url: import.meta.env.VITE_ETF_SUPABASE_URL,
+    key: import.meta.env.VITE_ETF_SUPABASE_ANON_KEY
+  })
+  if (live) return live
+  return fetch(`${base}compare/etf_jinqiang.json?v=${Date.now()}`, { cache: 'no-store' })
+    .then(r => r.ok ? r.json() : [])
+    .catch(() => [])
+}
+
 onMounted(async () => {
   const base = import.meta.env.BASE_URL
   try {
     const [snaps, etfRes, fundRes] = await Promise.all([
       fetchPositionSnapshots(500),
-      fetch(`${base}compare/etf_jinqiang.json?v=${Date.now()}`, { cache: 'no-store' }).then(r => r.ok ? r.json() : []).catch(() => []),
+      loadEtfPoints(),
       fetch(`${base}compare/fund_027730.json?v=${Date.now()}`, { cache: 'no-store' }).then(r => r.ok ? r.json() : []).catch(() => [])
     ])
     solo.value = (snaps || []).filter(s => s.date >= NAV_CHART_START)
