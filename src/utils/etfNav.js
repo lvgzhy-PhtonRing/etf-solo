@@ -5,7 +5,7 @@ export const ETF_NAV_BASE_ASSET = 848405
 export function mapEtfPosSnaps(rows) {
   if (!Array.isArray(rows)) return []
   return rows
-    .filter(r => r && typeof r.date === 'string' && r.date >= ETF_NAV_BASE_DATE && Number(r.asset) > 0)
+    .filter(r => r && typeof r.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(r.date) && r.date >= ETF_NAV_BASE_DATE && Number(r.asset) > 0)
     .map(r => ({ date: r.date, nav: Number(r.asset) / ETF_NAV_BASE_ASSET }))
     .sort((a, b) => a.date.localeCompare(b.date))
 }

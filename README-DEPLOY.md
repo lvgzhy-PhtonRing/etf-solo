@@ -39,6 +39,8 @@ npx supabase functions deploy backup      --project-ref efysjvbbaxwalhbbjxdc
 2. Settings → Secrets and variables → Actions：
    - `SUPABASE_URL`
    - `SUPABASE_ANON_KEY`
+   - `ETF_SUPABASE_URL`（ETF 金枪不倒项目，仅只读 RPC）
+   - `ETF_SUPABASE_ANON_KEY`（同上；缺配不会报错，仅静默回退静态 JSON，勿漏配）
 3. Settings → Pages → Source 选 **GitHub Actions**
 4. 推送后 Actions 自动构建发布
 

@@ -48,4 +48,4 @@ npm test         # vitest
 ## 安全
 
 - `src/.env` 不入 git；anon key 可写全库（个人自用取舍）
-- 禁止引用/写入 mqdx 项目（`mqdxmbsaddebxlallgos`），那是合伙版生产库
+- 禁止引用/写入 mqdx 项目（`mqdxmbsaddebxlallgos`），那是合伙版生产库；唯一例外：ETF-Solo 经只读 RPC `get_etf_pos_snaps` 单向读取金枪不倒仓位快照（spec 2026-11-28 授权），严禁任何写操作

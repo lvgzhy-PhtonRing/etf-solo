@@ -45,6 +45,32 @@ describe('mapEtfPosSnaps', () => {
     expect(mapEtfPosSnaps(null)).toEqual([])
     expect(mapEtfPosSnaps({})).toEqual([])
   })
+
+  it('过滤非 ISO 日期格式', () => {
+    const out = mapEtfPosSnaps([
+      { date: 'foo', asset: 900000 },
+      { date: '2026-08-01', asset: 900000 }
+    ])
+    expect(out.map(p => p.date)).toEqual(['2026-08-01'])
+  })
+
+  it('过滤缺失或非数字 asset', () => {
+    const out = mapEtfPosSnaps([
+      { date: '2026-08-01' },
+      { date: '2026-08-02', asset: 'abc' },
+      { date: '2026-08-03', asset: 100 }
+    ])
+    expect(out.map(p => p.date)).toEqual(['2026-08-03'])
+  })
+
+  it('过滤缺失或非字符串 date', () => {
+    const out = mapEtfPosSnaps([
+      { asset: 100 },
+      { date: 20260804, asset: 100 },
+      { date: '2026-08-05', asset: 100 }
+    ])
+    expect(out.map(p => p.date)).toEqual(['2026-08-05'])
+  })
 })
 
 describe('fetchEtfNav', () => {
